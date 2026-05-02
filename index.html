@@ -222,24 +222,26 @@ body::before{content:'';position:fixed;inset:0;background:
 .status-pill.done{border-color:rgba(34,197,94,.36);background:rgba(34,197,94,.1);color:#22c55e}
 .round-layout{flex:1;min-height:0;display:grid;grid-template-columns:1fr 236px;gap:9px}
 .round-rounds{min-height:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:auto;background:rgba(0,0,0,.14)}
-.round-table{width:100%;min-width:720px;height:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+.round-table{width:100%;min-width:780px;height:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
 .round-table th,.round-table td{padding:3px 7px;text-align:right;border-bottom:1px solid rgba(255,255,255,.045);font-family:'JetBrains Mono',monospace;font-weight:900}
 .round-table th:first-child,.round-table td:first-child{position:sticky;left:0;z-index:1;text-align:left;font-family:'Inter',sans-serif;width:58px;color:#fbbf24;background:rgba(10,19,64,.98)}
 .round-table th{color:rgba(255,255,255,.52);font-size:9px;letter-spacing:1px;text-transform:uppercase;background:rgba(255,255,255,.035)}
 .round-table tr.done td{color:#fff}
 .round-table tr.pending td{color:rgba(255,255,255,.24)}
 .round-table td.cur,.round-table th.cur{background:rgba(251,191,36,.08);border-left:1px solid rgba(251,191,36,.25);border-right:1px solid rgba(251,191,36,.25)}
+.round-table th.postal-col,.round-table td.postal-col{background:rgba(34,197,94,.09);border-left:1px solid rgba(34,197,94,.28);border-right:1px solid rgba(34,197,94,.28);color:#22c55e}
+.round-table th.postal-col{color:#22c55e}
 .round-table .party-cell{color:var(--pc,#fbbf24);letter-spacing:1px}
 .round-side{display:flex;flex-direction:column;gap:7px;min-height:0}
-.round-side-title{font-family:'Anek Malayalam',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.72);letter-spacing:.3px}
-.round-side-grid{display:grid;grid-template-columns:1fr;gap:6px}
-.round-party{border-radius:7px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);padding:7px 8px;border-left:4px solid var(--pc)}
-.round-party-head{display:flex;justify-content:space-between;align-items:center}
-.round-party-k{font-family:'Inter',sans-serif;font-weight:900;font-size:10px;color:var(--pc);letter-spacing:1px}
-.round-party-v{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:16px;color:#fff;line-height:1.1}
-.round-party-s{font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:9px;color:rgba(255,255,255,.45);margin-top:2px}
-.round-postal{margin-top:auto;border-radius:8px;border:1px solid rgba(34,197,94,.2);background:rgba(34,197,94,.055);padding:8px}
-.round-postal .round-party{background:rgba(0,0,0,.16);padding:5px 7px}
+.round-side-main{flex:1;min-height:0;display:flex;flex-direction:column}
+.round-side-title{font-family:'Anek Malayalam',sans-serif;font-weight:900;font-size:13px;color:rgba(255,255,255,.78);letter-spacing:.3px}
+.round-side-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:repeat(4,1fr);gap:6px;margin-top:6px}
+.round-party{min-height:0;border-radius:7px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);padding:7px 8px;border-left:4px solid var(--pc);display:flex;flex-direction:column;justify-content:center}
+.round-party-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.round-party-meta{min-width:0;display:flex;flex-direction:column;gap:3px}
+.round-party-k{font-family:'Anek Malayalam',sans-serif;font-weight:900;font-size:13px;line-height:1.1;color:var(--pc);letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.round-party-v{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:20px;color:#fff;line-height:1.05;flex-shrink:0}
+.round-party-s{font-family:'Inter','Anek Malayalam',sans-serif;font-weight:900;font-size:10px;line-height:1;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase}
 .round-total-line{display:flex;justify-content:space-between;align-items:center;padding:8px 9px;border-radius:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22)}
 .round-total-line span{font-family:'Anek Malayalam',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.72)}
 .round-total-line b{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:18px;color:#fbbf24}
@@ -404,9 +406,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .cprog-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.35)}
 .cprog-track{height:5px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;position:relative}
 .cprog-fill{height:100%;border-radius:99px;transition:width .9s cubic-bezier(.16,1,.3,1)}
-.cprog-fill.votes{background:linear-gradient(90deg,#22c55e,#16a34a);box-shadow:0 0 8px rgba(34,197,94,.4)}
 .cprog-fill.rnds{background:linear-gradient(90deg,#fbbf24,#d97706);box-shadow:0 0 6px rgba(251,191,36,.35)}
-.cprog-divider{height:1px;background:rgba(255,255,255,.06);margin:0 -12px}
 
 /* === INSIGHTS PANEL (Round-wise Cumulative) === */
 .ins{flex-shrink:0;padding:8px 10px}
@@ -1466,24 +1466,9 @@ function SeatTally({ tally, total }) {
 /* ====================================================================
    COUNTING PROGRESS — compact card between SeatTally and AnalyticsFlash
    ==================================================================== */
-function CountingProgress({ pollStats, completedRounds, totalRoundsAll }) {
-  const votePct = Math.min(100, pollStats.pct || 0);
+function CountingProgress({ completedRounds, totalRoundsAll }) {
   const rndPct  = totalRoundsAll > 0 ? Math.min(100, (completedRounds / totalRoundsAll) * 100) : 0;
   return html`<div class="panel cprog">
-    <div class="cprog-row">
-      <div class="cprog-label-row">
-        <span class="cprog-label">എണ്ണൽ പുരോഗതി · VOTES COUNTED</span>
-        <span class="cprog-val">${votePct.toFixed(1)}%</span>
-      </div>
-      <div class="cprog-track">
-        <div class="cprog-fill votes" style=${`width:${votePct.toFixed(1)}%`}></div>
-      </div>
-      <div class="cprog-label-row" style="margin-top:1px">
-        <span class="cprog-sub">${fmtIN(pollStats.counted)} / ${fmtIN(pollStats.polled)} votes</span>
-        <span class="cprog-sub">${fmtIN(pollStats.remaining)} remaining</span>
-      </div>
-    </div>
-    <div class="cprog-divider"></div>
     <div class="cprog-row">
       <div class="cprog-label-row">
         <span class="cprog-label">ROUND PROGRESS</span>
@@ -1499,7 +1484,7 @@ function CountingProgress({ pollStats, completedRounds, totalRoundsAll }) {
 /* ====================================================================
    ANALYTICS FLASH (left, rotates) — Lead, Bars, Counting Progress (no donut/pie since vote share removed)
    ==================================================================== */
-function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, constituencies, candidates }) {
+function AnalyticsFlash({ totals, totalLead, leadParty, segments, constituencies, candidates }) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const per = 5;
@@ -1551,15 +1536,6 @@ function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, con
               </div>
             </div>`;
           })}
-          <div style="flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(34,197,94,.07);border-radius:7px;border:1px solid rgba(34,197,94,.18)">
-            <span style="font-family:'Anek Malayalam',sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,.65)">എണ്ണൽ പുരോഗതി</span>
-            <span style="display:flex;align-items:center;gap:8px">
-              <div style="width:70px;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
-                <div style=${`height:100%;width:${pollStats.pct.toFixed(1)}%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px`}></div>
-              </div>
-              <b style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:900;color:#22c55e">${pollStats.pct.toFixed(1)}%</b>
-            </span>
-          </div>
         </div>
       </div>
     </div>
@@ -1791,31 +1767,35 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
           <div class="round-layout">
             <div class="round-rounds">
               <table class="round-table">
-                <thead><tr><th>Party</th>${d.rounds.map(r => html`<th class=${r.round===(cons.completedRounds||cons.round||0)?'cur':''} key=${r.round}>R${pad2N(r.round)}</th>`)}</tr></thead>
+                <thead><tr><th>Party</th><th class="postal-col">POSTAL</th>${d.rounds.map(r => html`<th class=${r.round===(cons.completedRounds||cons.round||0)?'cur':''} key=${r.round}>R${pad2N(r.round)}</th>`)}</tr></thead>
                 <tbody>
                   ${['UDF','LDF','NDA','OTH'].map(p => html`<tr class="done" key=${p}>
                     <td class="party-cell" style=${`--pc:${PARTIES[p].color}`}>${p}</td>
+                    <td class="postal-col">${fmtIN(d.postal[p]||0)}</td>
                     ${d.rounds.map(r => html`<td class=${r.round===(cons.completedRounds||cons.round||0)?'cur':''} key=${r.round}>${r.counted ? fmtIN(r.byParty[p]||0) : '—'}</td>`)}
                   </tr>`)}
                 </tbody>
               </table>
             </div>
             <div class="round-side">
-              <div>
+              <div class="round-side-main">
                 <div class="round-side-title">ക്യൂമുലേറ്റീവ് · CUMULATIVE</div>
                 <div class="round-side-grid">
-                  ${['UDF','LDF','NDA','OTH'].map(p => html`<div class="round-party" style=${`--pc:${PARTIES[p].color}`} key=${p}>
-                    <div class="round-party-head"><span class="round-party-k">${p}</span><span class="round-party-v">${fmtIN(d.cum[p]||0)}</span></div>
-                    <div class="round-party-s">റൗണ്ടുകൾ വരെ</div>
-                  </div>`)}
-                </div>
-              </div>
-              <div class="round-postal">
-                <div class="round-side-title" style="color:#22c55e;margin-bottom:5px">പോസ്റ്റൽ ബാലറ്റ് · POSTAL</div>
-                <div class="round-side-grid">
-                  ${['UDF','LDF','NDA','OTH'].map(p => html`<div class="round-party" style=${`--pc:${PARTIES[p].color}`} key=${p}>
-                    <div class="round-party-head"><span class="round-party-k">${p}</span><span class="round-party-v" style="font-size:13px;color:#22c55e">${fmtIN(d.postal[p]||0)}</span></div>
-                  </div>`)}
+                  ${['UDF','LDF','NDA','OTH'].map(p => {
+                    const cand = candidates
+                      .filter(c => c.consId === cons.id && c.party === p)
+                      .sort((a,b) => (b.votes||0) - (a.votes||0))[0];
+                    const candName = cand?.name_ml || cand?.name || p;
+                    return html`<div class="round-party" style=${`--pc:${PARTIES[p].color}`} key=${p}>
+                      <div class="round-party-head">
+                        <span class="round-party-meta">
+                          <span class="round-party-k">${candName}</span>
+                          <span class="round-party-s">${PARTIES[p].name || PARTIES[p].en || p} · ${p}</span>
+                        </span>
+                        <span class="round-party-v">${fmtIN(d.cum[p]||0)}</span>
+                      </div>
+                    </div>`;
+                  })}
                 </div>
               </div>
               <div class="round-total-line"><span>ആകെ എണ്ണിയത്</span><b>${fmtIN(total)}</b></div>
@@ -4287,8 +4267,8 @@ function App() {
     <div class="main">
       <div class="col col-l">
         <${SeatTally} tally=${tally} total=${totalSeats}/>
-        <${CountingProgress} pollStats=${pollStats} completedRounds=${completedRounds} totalRoundsAll=${totalRoundsAll}/>
-        <${AnalyticsFlash} totals=${totals} totalLead=${totalLead} leadParty=${leadParty} pollStats=${pollStats} segments=${segments} constituencies=${constituencies} candidates=${candidates}/>
+        <${CountingProgress} completedRounds=${completedRounds} totalRoundsAll=${totalRoundsAll}/>
+        <${AnalyticsFlash} totals=${totals} totalLead=${totalLead} leadParty=${leadParty} segments=${segments} constituencies=${constituencies} candidates=${candidates}/>
       </div>
       <div class="col col-c">
         <${LeadingCandidates} candidates=${candidates} constituencies=${constituencies}/>
