@@ -434,6 +434,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .afl-cons-line b{font-family:'Anek Malayalam',sans-serif;font-size:11.5px;color:#fff;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;overflow-wrap:anywhere}
 .afl-party-tag{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:2px 7px;border-radius:4px;background:var(--pc);color:#fff;font-family:'Inter',sans-serif;font-weight:900;font-size:8.5px;letter-spacing:1px;line-height:1;box-shadow:0 0 10px var(--pc);flex-shrink:0}
 .afl-party-tag::after{content:' LEAD';font-size:7px;letter-spacing:.8px;opacity:.78;margin-left:3px}
+.afl-status-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 6px;border-radius:4px;border:1px solid var(--sc);background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc);font-family:'Inter',sans-serif;font-weight:900;font-size:7px;letter-spacing:.7px;line-height:1;white-space:nowrap;flex-shrink:0}
 
 /* === TICKER === */
 .tickr{flex-shrink:0;display:flex;align-items:center;gap:0;padding:0;background:linear-gradient(90deg,rgba(220,31,46,.32),rgba(7,11,42,.85));border-top:2px solid rgba(220,31,46,.6);height:38px;overflow:hidden}
@@ -1524,15 +1525,15 @@ function AnalyticsFlash({ totals, totalLead, leadParty, segments, constituencies
             const st = COUNTING_STATUSES.find(s=>s.val===(r.cons.countingStatus||'live'))||COUNTING_STATUSES[1];
             return html`<div class="afl-poll-row" key=${r.cons.id} style=${`border-left:3px solid ${p.color}`}>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-                <span class="afl-cons-line"><b>${r.cons.name_ml}</b><span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span></span>
-                <b style=${`color:${p.color};font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;${done?'':'animation:blink 1s ease infinite'}`}>+${fmtIN(r.margin)}</b>
+                <span class="afl-cons-line"><b>${r.cons.name_ml}</b><span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span><span class="afl-status-tag" style=${`--sc:${st.color}`}>${st.en.toUpperCase()}</span></span>
+                <b style=${`color:${p.color};font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;${st.val==='live'&&!done?'animation:blink 1s ease infinite':''}`}>+${fmtIN(r.margin)}</b>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <small style=${`font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:9.5px;color:${p.color};letter-spacing:.3px`}>${r.leader?.name_ml || ''} · ${st.en.toUpperCase()}</small>
+                <small style=${`font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:9.5px;color:${st.color};letter-spacing:.3px`}>${r.leader?.name_ml || ''} · ${st.ml || st.en}</small>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.45)">R${rndDone}/${rndTotal}</span>
               </div>
               <div style="height:3px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
-                <div style=${`height:100%;width:${rndPct}%;background:${p.color};opacity:.75;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)`}></div>
+                <div style=${`height:100%;width:${rndPct}%;background:${st.val==='live'?p.color:st.color};opacity:.8;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)`}></div>
               </div>
             </div>`;
           })}
@@ -1588,10 +1589,11 @@ function LeadingCandidates({ candidates, constituencies }) {
         const rndDone = card.cons.round || 0;
         const rndTotal = card.cons.total || 15;
         const rndPct = Math.min(100, (rndDone / rndTotal) * 100).toFixed(0);
+        const st = COUNTING_STATUSES.find(s => s.val === (card.cons.countingStatus || 'live')) || COUNTING_STATUSES[1];
         return html`<div class="lead-card ${cls}" key=${card.cons.id+i}>
           <div class="lead-cons ${cls}">
             <span class="lead-cons-name">${card.cons.name_ml}</span>
-            <span class="lead-rnd">R ${pad2N(rndDone)}/${pad2N(rndTotal)}</span>
+            <span class="lead-rnd" style=${`color:${st.color}`}>${st.en.toUpperCase()}</span>
           </div>
           <div class="lead-body">
             <div class="lead-photo">
@@ -1622,7 +1624,7 @@ function LeadingCandidates({ candidates, constituencies }) {
           </div>` : null}
           <div class="lead-foot">
             <div class="lead-rnd-row">
-              <span class="lead-rnd-lbl">Round Progress</span>
+              <span class="lead-rnd-lbl">${st.en}</span>
               <span class="lead-rnd-num">${rndDone}/${rndTotal} · ${rndPct}%</span>
             </div>
             <div class="lead-prog-track">
@@ -1755,6 +1757,7 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
       ${shown.map(cons => {
         const d = rowFor(cons);
         const done = (cons.completedRounds||cons.round||0) >= (cons.totalRounds||cons.total||15);
+        const st = COUNTING_STATUSES.find(s => s.val === (cons.countingStatus || 'live')) || COUNTING_STATUSES[1];
         const total = ['UDF','LDF','NDA','OTH'].reduce((s,p) => s + (d.cum[p]||0) + (d.postal[p]||0), 0);
         return html`<div class="round-card" key=${cons.id}>
           <div class="round-title">
@@ -1762,7 +1765,7 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
               <div class="round-cons-ml">${cons.name_ml}</div>
               <div class="round-cons-en">${cons.name_en} · R ${pad2N(cons.completedRounds||cons.round||0)}/${pad2N(cons.totalRounds||cons.total||15)}</div>
             </div>
-            <span class=${`status-pill ${done?'done':'live'}`}>${done?'COMPLETED':'LIVE'}</span>
+            <span class=${`status-pill ${st.val==='live'&&!done?'live':'done'}`} style=${`color:${st.color};border-color:${st.color}66;background:${st.color}1a`}>${st.en.toUpperCase()}</span>
           </div>
           <div class="round-layout">
             <div class="round-rounds">
@@ -1903,6 +1906,7 @@ function ConstituencyFlash({ candidates, constituencies }) {
   const leader = cands[0];
   const margin = leader && cands[1] ? leader.votes - cands[1].votes : 0;
   const done = (cons.completedRounds||cons.round||0) >= (cons.totalRounds||cons.total||15);
+  const st = COUNTING_STATUSES.find(s => s.val === (cons.countingStatus || 'live')) || COUNTING_STATUSES[1];
   const labels = constituencies.map((c, i) => c.name_ml || c.name_en || `Constituency ${i+1}`);
   return html`<div class="panel cflash">
     <div class="panel-h">
@@ -1915,7 +1919,7 @@ function ConstituencyFlash({ candidates, constituencies }) {
     <div class="cflash-stage" key=${cons.id}>
       <div class="cflash-head">
         <div class="cflash-cons-ml">${cons.name_ml}</div>
-        <div class="cflash-cons-en">${cons.name_en} · റൗണ്ട് ${pad2N(cons.completedRounds||cons.round||0)}/${pad2N(cons.totalRounds||cons.total||15)} · <span style=${done?'color:#22c55e':'color:#fbbf24;animation:blink 1s ease infinite'}>${done?'COMPLETED':'LIVE COUNTING'}</span></div>
+        <div class="cflash-cons-en">${cons.name_en} · റൗണ്ട് ${pad2N(cons.completedRounds||cons.round||0)}/${pad2N(cons.totalRounds||cons.total||15)} · <span style=${`color:${st.color};${st.val==='live'&&!done?'animation:blink 1s ease infinite':''}`}>${st.en.toUpperCase()}</span></div>
       </div>
       <div class="cflash-cards">
         ${cands.map((c,i) => {
@@ -2308,10 +2312,10 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
     await supaUpsertBatch('lac_segments', updatedSegments.map(segmentToDb));
     onToast('All vote counts reset');
   };
-  const updateStatus = (newStatus) => {
+  const updateStatus = async (newStatus) => {
     const updatedCons = constituencies.map(co => co.id === consId ? { ...co, countingStatus: newStatus } : co);
     setConstituencies(updatedCons);
-    supaUpsert('constituencies', { id: consId, counting_status: newStatus });
+    await supaUpdateWhere('constituencies', { counting_status: newStatus }, { id: consId });
     onToast('സ്റ്റാറ്റസ് അപ്ഡേറ്റ് ചെയ്തു');
   };
 
