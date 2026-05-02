@@ -113,7 +113,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .main{flex:1;display:grid;grid-template-columns:268px 1fr 304px;gap:8px;padding:8px;min-height:0;overflow:hidden}
 .col{min-height:0;min-width:0;display:grid;gap:8px}
 /* col-l: SeatTally(auto) + AnalyticsFlash(1fr) - explicit row sizing prevents flash collapse */
-.col-l{grid-template-rows:auto 1fr}
+.col-l{grid-template-rows:auto auto 1fr}
 /* col-c: LeadingCandidates(auto) + FlashCenter(1fr) */
 .col-c{grid-template-rows:auto 1fr}
 /* col-r: Breaking + candidate flash */
@@ -394,6 +394,20 @@ body::before{content:'';position:fixed;inset:0;background:
 .pty-tag-r.nda{color:#ff9933;background:rgba(255,122,31,.12);border:1px solid rgba(255,122,31,.32)}
 .pty-tag-r.oth{color:#94a3b8;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.32)}
 
+/* === COUNTING PROGRESS CARD === */
+.cprog{flex-shrink:0;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.cprog-row{display:flex;flex-direction:column;gap:4px}
+.cprog-label-row{display:flex;justify-content:space-between;align-items:baseline}
+.cprog-label{font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px}
+.cprog-val{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:13px;color:#22c55e}
+.cprog-val.rnd{color:#fbbf24}
+.cprog-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.35)}
+.cprog-track{height:5px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;position:relative}
+.cprog-fill{height:100%;border-radius:99px;transition:width .9s cubic-bezier(.16,1,.3,1)}
+.cprog-fill.votes{background:linear-gradient(90deg,#22c55e,#16a34a);box-shadow:0 0 8px rgba(34,197,94,.4)}
+.cprog-fill.rnds{background:linear-gradient(90deg,#fbbf24,#d97706);box-shadow:0 0 6px rgba(251,191,36,.35)}
+.cprog-divider{height:1px;background:rgba(255,255,255,.06);margin:0 -12px}
+
 /* === INSIGHTS PANEL (Round-wise Cumulative) === */
 .ins{flex-shrink:0;padding:8px 10px}
 .ins-tab-wrap{flex:1;min-height:0;overflow:auto}
@@ -409,12 +423,12 @@ body::before{content:'';position:fixed;inset:0;background:
 
 /* === AnalyticsFlash poll card === */
 .afl-anim{animation:aflIn .55s cubic-bezier(.16,1,.3,1)}
-.afl-poll{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:4px}
+.afl-poll{flex:1;display:flex;flex-direction:column;gap:5px;padding:6px}
 .afl-poll-head{font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:10px;color:rgba(255,255,255,.6);text-align:center;letter-spacing:.6px;text-transform:uppercase;line-height:1.3}
 .afl-poll-pct{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:36px;color:#22c55e;text-align:center;line-height:1;letter-spacing:-1px}
 .afl-poll-bar{height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.2);width:100%}
 .afl-poll-bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1);box-shadow:0 0 8px rgba(34,197,94,.4)}
-.afl-poll-row{width:100%;display:flex;justify-content:space-between;align-items:center;padding:3px 6px;font-family:'Anek Malayalam',sans-serif;font-weight:600;font-size:10.5px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.025);border-radius:5px;margin-top:2px}
+.afl-poll-row{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;justify-content:space-between;padding:8px 10px;font-family:'Anek Malayalam',sans-serif;font-weight:600;font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.025);border-radius:7px}
 .afl-poll-row b{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11.5px;color:#fff}
 .afl-cons-line{display:flex;align-items:center;gap:6px;min-width:0}
 .afl-cons-line b{font-family:'Anek Malayalam',sans-serif;font-size:11.5px;color:#fff;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;overflow-wrap:anywhere}
@@ -1450,12 +1464,45 @@ function SeatTally({ tally, total }) {
 }
 
 /* ====================================================================
+   COUNTING PROGRESS — compact card between SeatTally and AnalyticsFlash
+   ==================================================================== */
+function CountingProgress({ pollStats, completedRounds, totalRoundsAll }) {
+  const votePct = Math.min(100, pollStats.pct || 0);
+  const rndPct  = totalRoundsAll > 0 ? Math.min(100, (completedRounds / totalRoundsAll) * 100) : 0;
+  return html`<div class="panel cprog">
+    <div class="cprog-row">
+      <div class="cprog-label-row">
+        <span class="cprog-label">എണ്ണൽ പുരോഗതി · VOTES COUNTED</span>
+        <span class="cprog-val">${votePct.toFixed(1)}%</span>
+      </div>
+      <div class="cprog-track">
+        <div class="cprog-fill votes" style=${`width:${votePct.toFixed(1)}%`}></div>
+      </div>
+      <div class="cprog-label-row" style="margin-top:1px">
+        <span class="cprog-sub">${fmtIN(pollStats.counted)} / ${fmtIN(pollStats.polled)} votes</span>
+        <span class="cprog-sub">${fmtIN(pollStats.remaining)} remaining</span>
+      </div>
+    </div>
+    <div class="cprog-divider"></div>
+    <div class="cprog-row">
+      <div class="cprog-label-row">
+        <span class="cprog-label">ROUND PROGRESS</span>
+        <span class="cprog-val rnd">${completedRounds}/${totalRoundsAll} · ${rndPct.toFixed(0)}%</span>
+      </div>
+      <div class="cprog-track">
+        <div class="cprog-fill rnds" style=${`width:${rndPct.toFixed(1)}%`}></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================================
    ANALYTICS FLASH (left, rotates) — Lead, Bars, Counting Progress (no donut/pie since vote share removed)
    ==================================================================== */
 function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, constituencies, candidates }) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
-  const per = 4;
+  const per = 5;
   const lacRows = useMemo(() => constituencies.map(c => {
     const cs = candidates.filter(k => k.consId === c.id).sort((a,b) => b.votes - a.votes);
     const leader = cs[0], runner = cs[1];
@@ -1481,26 +1528,38 @@ function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, con
     <div class="afl-stage">
       <div class="afl-card afl-anim" key=${idx}>
         <div class="afl-poll">
-          <div class="afl-poll-head">മണ്ഡലം · മുന്നണി · ലീഡ്<br/>CONSTITUENCY LIVE STATUS</div>
+          <div class="afl-poll-head">CONSTITUENCY LIVE STATUS</div>
           ${shown.map(r => {
             const party = r.leader?.party || 'OTH';
             const p = PARTIES[party];
-            const done = (r.cons.completedRounds||r.cons.round||0) >= (r.cons.totalRounds||r.cons.total||15) || r.cons.countingStatus === 'completed' || r.cons.countingStatus === 'declared';
-            return html`<div class="afl-poll-row" key=${r.cons.id} style=${`border-left:3px solid ${p.color};align-items:flex-start;gap:6px`}>
-              <span style="display:flex;flex-direction:column;line-height:1.15;flex:1;min-width:0">
-                <span class="afl-cons-line">
-                  <b>${r.cons.name_ml}</b>
-                  <span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span>
-                </span>
-                <small style="font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:8.5px;color:${p.color};letter-spacing:.4px">${r.leader?.name_ml || ''} · ${(() => {
-                  const st = COUNTING_STATUSES.find(s=>s.val===(r.cons.countingStatus||'live'))||COUNTING_STATUSES[1];
-                  return st.en.toUpperCase();
-                })()}</small>
-              </span>
-              <b style=${`color:${p.color};${done?'':'animation:blink 1s ease infinite'}`}>+${fmtIN(r.margin)}</b>
+            const rndDone = r.cons.completedRounds||r.cons.round||0;
+            const rndTotal = r.cons.totalRounds||r.cons.total||15;
+            const rndPct = Math.min(100, rndTotal > 0 ? (rndDone/rndTotal)*100 : 0).toFixed(0);
+            const done = rndDone >= rndTotal || r.cons.countingStatus === 'completed' || r.cons.countingStatus === 'declared';
+            const st = COUNTING_STATUSES.find(s=>s.val===(r.cons.countingStatus||'live'))||COUNTING_STATUSES[1];
+            return html`<div class="afl-poll-row" key=${r.cons.id} style=${`border-left:3px solid ${p.color}`}>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                <span class="afl-cons-line"><b>${r.cons.name_ml}</b><span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span></span>
+                <b style=${`color:${p.color};font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;${done?'':'animation:blink 1s ease infinite'}`}>+${fmtIN(r.margin)}</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <small style=${`font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:9.5px;color:${p.color};letter-spacing:.3px`}>${r.leader?.name_ml || ''} · ${st.en.toUpperCase()}</small>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.45)">R${rndDone}/${rndTotal}</span>
+              </div>
+              <div style="height:3px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
+                <div style=${`height:100%;width:${rndPct}%;background:${p.color};opacity:.75;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)`}></div>
+              </div>
             </div>`;
           })}
-          <div class="afl-poll-row"><span>എണ്ണൽ പുരോഗതി</span><b style="color:#22c55e">${pollStats.pct.toFixed(1)}%</b></div>
+          <div style="flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(34,197,94,.07);border-radius:7px;border:1px solid rgba(34,197,94,.18)">
+            <span style="font-family:'Anek Malayalam',sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,.65)">എണ്ണൽ പുരോഗതി</span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <div style="width:70px;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden">
+                <div style=${`height:100%;width:${pollStats.pct.toFixed(1)}%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px`}></div>
+              </div>
+              <b style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:900;color:#22c55e">${pollStats.pct.toFixed(1)}%</b>
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -4209,6 +4268,7 @@ function App() {
   const totalLead = (_sortedTotals[0]?.v || 0) - (_sortedTotals[1]?.v || 0);
   const leadParty = _sortedTotals[0]?.p || 'UDF';
   const completedRounds = constituencies.reduce((s,c) => s + (c.completedRounds||c.round||0), 0);
+  const totalRoundsAll = constituencies.reduce((s,c) => s + (c.totalRounds||c.total||15), 0);
   /* Polling statistics: 25.6 lakh registered voters in Kozhikode district approx; we'll compute % polled and remaining to count */
   const pollStats = useMemo(() => {
     const lacPolled = Object.values(settings.votersPolledByCons || {}).reduce((s,v) => s + (parseInt(v,10)||0), 0);
@@ -4227,6 +4287,7 @@ function App() {
     <div class="main">
       <div class="col col-l">
         <${SeatTally} tally=${tally} total=${totalSeats}/>
+        <${CountingProgress} pollStats=${pollStats} completedRounds=${completedRounds} totalRoundsAll=${totalRoundsAll}/>
         <${AnalyticsFlash} totals=${totals} totalLead=${totalLead} leadParty=${leadParty} pollStats=${pollStats} segments=${segments} constituencies=${constituencies} candidates=${candidates}/>
       </div>
       <div class="col col-c">
