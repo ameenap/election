@@ -161,32 +161,54 @@ body::before{content:'';position:fixed;inset:0;background:
 
 /* === LEADING CANDIDATES === */
 .lead-row{flex-shrink:0}
-.lead-marquee{height:190px;overflow:hidden;position:relative}
+.lead-marquee{height:218px;overflow:hidden;position:relative}
 .lead-track{height:100%;display:flex;gap:10px;width:max-content;animation:leadScroll 76s linear infinite;will-change:transform}
 .lead-row:hover .lead-track{animation-play-state:paused}
 .lead-track.paused{animation-play-state:paused}
 @keyframes leadScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.lead-card{width:216px;position:relative;background:linear-gradient(180deg,rgba(20,28,68,.85),rgba(13,20,55,.92));border:1px solid var(--line2);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 216px}
-.lead-card.udf{border-color:rgba(30,93,255,.5);box-shadow:0 0 20px rgba(30,93,255,.18)}
-.lead-card.ldf{border-color:rgba(220,31,46,.5);box-shadow:0 0 20px rgba(220,31,46,.18)}
-.lead-card.nda{border-color:rgba(255,122,31,.5);box-shadow:0 0 20px rgba(255,122,31,.18)}
-.lead-cons{display:flex;justify-content:space-between;align-items:center;padding:6px 9px;font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.2px;color:#fff}
-.lead-cons.udf{background:linear-gradient(90deg,#1e5dff,#3b82f6)}
-.lead-cons.ldf{background:linear-gradient(90deg,#dc1f2e,#ef4444)}
-.lead-cons.nda{background:linear-gradient(90deg,#ff7a1f,#fb923c)}
-.lead-rnd{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(0,0,0,.32);padding:1px 5px;border-radius:3px;color:#fff}
-.lead-photo{position:relative;height:78px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.18));overflow:hidden}
-.lead-photo svg{display:block}
-.lead-sym{position:absolute;top:6px;right:6px;width:24px;height:24px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-.lead-info{padding:8px 9px 9px;display:flex;flex-direction:column;gap:4px;flex:1}
-.lead-name{font-family:'Noto Sans Malayalam',sans-serif;font-weight:900;font-size:15.5px;color:#fff;line-height:1.16;min-height:34px;display:flex;align-items:center;text-shadow:0 1px 8px rgba(0,0,0,.35)}
-.lead-pty{font-family:'Inter',sans-serif;font-weight:800;font-size:11px;color:rgba(255,255,255,.72);letter-spacing:.8px}
-.lead-metrics{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:stretch;margin-top:2px}
-.lead-vote-box,.lead-margin-box{border-radius:6px;padding:5px 6px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08)}
-.lead-metric-l{font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:8.5px;color:rgba(255,255,255,.48);letter-spacing:.5px;text-transform:uppercase;line-height:1}
-.lead-votes{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:18px;line-height:1.12;margin-top:3px}
-.lead-votes.udf{color:#3b82f6}.lead-votes.ldf{color:#ef4444}.lead-votes.nda{color:#fb923c}
-.lead-mar{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:13px;color:#22c55e;display:flex;align-items:center;gap:3px;margin-top:3px;white-space:nowrap}
+.lead-card{width:216px;height:210px;position:relative;background:linear-gradient(160deg,rgba(16,24,58,.97),rgba(9,15,42,.99));border:1px solid var(--line2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 216px}
+.lead-card.udf{border-color:rgba(30,93,255,.45);box-shadow:0 0 22px rgba(30,93,255,.22),inset 0 0 50px rgba(30,93,255,.04)}
+.lead-card.ldf{border-color:rgba(220,31,46,.45);box-shadow:0 0 22px rgba(220,31,46,.22),inset 0 0 50px rgba(220,31,46,.04)}
+.lead-card.nda{border-color:rgba(255,122,31,.45);box-shadow:0 0 22px rgba(255,122,31,.22),inset 0 0 50px rgba(255,122,31,.04)}
+.lead-cons{display:flex;justify-content:space-between;align-items:center;padding:0 10px;height:46px;flex-shrink:0;overflow:hidden;font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:13px;letter-spacing:.2px;color:#fff}
+.lead-cons-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:6px}
+.lead-cons.udf{background:linear-gradient(90deg,#1845cc,#3b82f6)}
+.lead-cons.ldf{background:linear-gradient(90deg,#a81020,#ef4444)}
+.lead-cons.nda{background:linear-gradient(90deg,#cc5500,#fb923c)}
+.lead-rnd{font-family:'JetBrains Mono',monospace;font-size:9.5px;background:rgba(0,0,0,.38);padding:2px 6px;border-radius:4px;color:#fff;letter-spacing:.5px}
+.lead-body{display:flex;align-items:center;gap:10px;padding:8px 10px;flex:1;min-height:0}
+.lead-photo{position:relative;flex-shrink:0;width:76px;height:76px;display:flex;align-items:center;justify-content:center}
+.lead-photo-glow{position:absolute;inset:-8px;border-radius:50%;opacity:.4;filter:blur(10px);z-index:0;pointer-events:none}
+.lead-photo-glow.udf{background:radial-gradient(circle,#3b82f6 30%,transparent 70%)}
+.lead-photo-glow.ldf{background:radial-gradient(circle,#ef4444 30%,transparent 70%)}
+.lead-photo-glow.nda{background:radial-gradient(circle,#fb923c 30%,transparent 70%)}
+.lead-photo svg,.lead-photo img{display:block;position:relative;z-index:1}
+.lead-sym{position:absolute;bottom:-2px;right:-5px;width:22px;height:22px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.55);z-index:2}
+.lead-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lead-name{font-family:'Noto Sans Malayalam',sans-serif;font-weight:900;font-size:13.5px;color:#fff;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,.5);margin-bottom:1px}
+.lead-pty{font-family:'Inter',sans-serif;font-weight:800;font-size:9px;color:rgba(255,255,255,.55);letter-spacing:.9px;margin-bottom:6px}
+.lead-metrics{display:flex;gap:5px}
+.lead-vote-box{flex:1;border-radius:7px;padding:5px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)}
+.lead-margin-box{flex:1;border-radius:7px;padding:5px 7px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25)}
+.lead-metric-l{font-family:'Inter',sans-serif;font-weight:700;font-size:7px;color:rgba(255,255,255,.4);letter-spacing:.7px;text-transform:uppercase;line-height:1;margin-bottom:3px}
+.lead-votes{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:14px;line-height:1}
+.lead-votes.udf{color:#60a5fa}.lead-votes.ldf{color:#f87171}.lead-votes.nda{color:#fb923c}.lead-votes.oth{color:#a78bfa}
+.lead-mar{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:12px;color:#22c55e;white-space:nowrap;line-height:1}
+.lead-runner{display:flex;align-items:center;gap:6px;padding:0 10px;height:28px;flex-shrink:0;overflow:hidden;border-top:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.22)}
+.lead-runner-rank{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:8px;color:rgba(255,255,255,.28);flex-shrink:0;letter-spacing:.5px}
+.lead-runner-name{font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:9.5px;color:rgba(255,255,255,.58);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-runner-pty{font-family:'Inter',sans-serif;font-weight:900;font-size:7.5px;padding:1px 5px;border-radius:3px;color:#fff;flex-shrink:0;letter-spacing:.5px}
+.lead-runner-votes{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:9px;color:rgba(255,255,255,.4);flex-shrink:0;margin-left:2px}
+.lead-foot{padding:0 10px;height:36px;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;overflow:hidden;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.25)}
+.lead-rnd-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.lead-rnd-lbl{font-family:'Inter',sans-serif;font-weight:700;font-size:7px;color:rgba(255,255,255,.32);letter-spacing:.9px;text-transform:uppercase}
+.lead-rnd-num{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:8.5px;color:rgba(255,255,255,.48);letter-spacing:.3px}
+.lead-prog-track{height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.05)}
+.lead-prog-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.16,1,.3,1)}
+.lead-prog-fill.udf{background:linear-gradient(90deg,#1e5dff,#60a5fa)}
+.lead-prog-fill.ldf{background:linear-gradient(90deg,#dc1f2e,#f87171)}
+.lead-prog-fill.nda{background:linear-gradient(90deg,#ff7a1f,#fbbf24)}
+.lead-prog-fill.oth{background:linear-gradient(90deg,#6d28d9,#a78bfa)}
 
 /* === ROUND WISE FLASH === */
 .roundflash{min-height:0}
@@ -1133,7 +1155,7 @@ function Avatar({ size=80, party='UDF', seed='x', ring=true, photoUrl='' }) {
   /* If photoUrl provided, render as image */
   if (photoUrl) {
     return html`<div style=${`width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;border:${ring?`2px solid ${p.color}`:`1.5px solid #fff`};background:#0a1340;flex-shrink:0`}>
-      <img src=${photoUrl} alt="" style="width:100%;height:100%;object-fit:cover;display:block"/>
+      <img src=${photoUrl} alt="" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block"/>
     </div>`;
   }
   const s = String(seed).split('').reduce((a,c)=>a+c.charCodeAt(0),0);
@@ -1470,7 +1492,7 @@ function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, con
                   <b>${r.cons.name_ml}</b>
                   <span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span>
                 </span>
-                <small style="font-family:'Inter',sans-serif;font-weight:800;font-size:8.5px;color:${p.color};letter-spacing:1px">${p.name} · ${(() => {
+                <small style="font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:8.5px;color:${p.color};letter-spacing:.4px">${r.leader?.name_ml || ''} · ${(() => {
                   const st = COUNTING_STATUSES.find(s=>s.val===(r.cons.countingStatus||'live'))||COUNTING_STATUSES[1];
                   return st.en.toUpperCase();
                 })()}</small>
@@ -1528,27 +1550,48 @@ function LeadingCandidates({ candidates, constituencies }) {
       ${track.map((card, i) => {
         const p = PARTIES[card.leader.party];
         const cls = card.leader.party.toLowerCase();
+        const rndDone = card.cons.round || 0;
+        const rndTotal = card.cons.total || 15;
+        const rndPct = Math.min(100, (rndDone / rndTotal) * 100).toFixed(0);
         return html`<div class="lead-card ${cls}" key=${card.cons.id+i}>
           <div class="lead-cons ${cls}">
-            <span>${card.cons.name_ml}</span>
-            <span class="lead-rnd">R ${pad2N(card.cons.round)}/${pad2N(card.cons.total)}</span>
+            <span class="lead-cons-name">${card.cons.name_ml}</span>
+            <span class="lead-rnd">R ${pad2N(rndDone)}/${pad2N(rndTotal)}</span>
           </div>
-          <div class="lead-photo">
-            <${Avatar} size=${80} party=${card.leader.party} seed=${card.leader.photoSeed} photoUrl=${card.leader.photoUrl||''}/>
-            <div class="lead-sym"><${PartySymbol} party=${card.leader.party} size=${20} symbolUrl=${card.leader.symbolUrl||''}/></div>
-          </div>
-          <div class="lead-info">
-            <div class="lead-name">${card.leader.name_ml}</div>
-            <div class="lead-pty">${p.en} · ${p.sub}</div>
-            <div class="lead-metrics">
-              <div class="lead-vote-box">
-                <div class="lead-metric-l">Total Votes</div>
-                <div class="lead-votes ${cls}">${fmtIN(card.leader.votes)}</div>
+          <div class="lead-body">
+            <div class="lead-photo">
+              <div class="lead-photo-glow ${cls}"></div>
+              <${Avatar} size=${76} party=${card.leader.party} seed=${card.leader.photoSeed} photoUrl=${card.leader.photoUrl||''}/>
+              <div class="lead-sym"><${PartySymbol} party=${card.leader.party} size=${18} symbolUrl=${card.leader.symbolUrl||''}/></div>
+            </div>
+            <div class="lead-info">
+              <div class="lead-name">${card.leader.name_ml}</div>
+              <div class="lead-pty">${p.en} · ${p.sub}</div>
+              <div class="lead-metrics">
+                <div class="lead-vote-box">
+                  <div class="lead-metric-l">Votes</div>
+                  <div class="lead-votes ${cls}">${fmtIN(card.leader.votes)}</div>
+                </div>
+                <div class="lead-margin-box">
+                  <div class="lead-metric-l">Lead</div>
+                  <div class="lead-mar">${card.runner ? html`▲ +${fmtIN(card.leader.votes - card.runner.votes)}` : html`<span style="color:rgba(255,255,255,.3)">—</span>`}</div>
+                </div>
               </div>
-              ${card.runner ? html`<div class="lead-margin-box">
-                <div class="lead-metric-l">Lead</div>
-                <div class="lead-mar">▲ +${fmtIN(card.leader.votes - card.runner.votes)}</div>
-              </div>` : null}
+            </div>
+          </div>
+          ${card.runner ? html`<div class="lead-runner">
+            <span class="lead-runner-rank">#2</span>
+            <span class="lead-runner-name">${card.runner.name_ml}</span>
+            <span class="lead-runner-pty" style="background:${PARTIES[card.runner.party]?.color||'#475569'}">${card.runner.party}</span>
+            <span class="lead-runner-votes">${fmtIN(card.runner.votes)}</span>
+          </div>` : null}
+          <div class="lead-foot">
+            <div class="lead-rnd-row">
+              <span class="lead-rnd-lbl">Round Progress</span>
+              <span class="lead-rnd-num">${rndDone}/${rndTotal} · ${rndPct}%</span>
+            </div>
+            <div class="lead-prog-track">
+              <div class="lead-prog-fill ${cls}" style="width:${rndPct}%"></div>
             </div>
           </div>
         </div>`;
