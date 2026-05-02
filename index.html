@@ -194,14 +194,15 @@ body::before{content:'';position:fixed;inset:0;background:
 .status-pill.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#fbbf24;animation:blink 1s ease infinite}
 .status-pill.done{border-color:rgba(34,197,94,.36);background:rgba(34,197,94,.1);color:#22c55e}
 .round-layout{flex:1;min-height:0;display:grid;grid-template-columns:1fr 236px;gap:9px}
-.round-rounds{min-height:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden;background:rgba(0,0,0,.14)}
-.round-table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+.round-rounds{min-height:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:auto;background:rgba(0,0,0,.14)}
+.round-table{width:100%;min-width:720px;height:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
 .round-table th,.round-table td{padding:3px 7px;text-align:right;border-bottom:1px solid rgba(255,255,255,.045);font-family:'JetBrains Mono',monospace;font-weight:900}
-.round-table th:first-child,.round-table td:first-child{text-align:left;font-family:'Inter',sans-serif;width:48px;color:#fbbf24}
+.round-table th:first-child,.round-table td:first-child{position:sticky;left:0;z-index:1;text-align:left;font-family:'Inter',sans-serif;width:58px;color:#fbbf24;background:rgba(10,19,64,.98)}
 .round-table th{color:rgba(255,255,255,.52);font-size:9px;letter-spacing:1px;text-transform:uppercase;background:rgba(255,255,255,.035)}
 .round-table tr.done td{color:#fff}
 .round-table tr.pending td{color:rgba(255,255,255,.24)}
-.round-table tr.cur td{background:rgba(251,191,36,.08);border-top:1px solid rgba(251,191,36,.25);border-bottom:1px solid rgba(251,191,36,.25)}
+.round-table td.cur,.round-table th.cur{background:rgba(251,191,36,.08);border-left:1px solid rgba(251,191,36,.25);border-right:1px solid rgba(251,191,36,.25)}
+.round-table .party-cell{color:var(--pc,#fbbf24);letter-spacing:1px}
 .round-side{display:flex;flex-direction:column;gap:7px;min-height:0}
 .round-side-title{font-family:'Anek Malayalam',sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,.72);letter-spacing:.3px}
 .round-side-grid{display:grid;grid-template-columns:1fr;gap:6px}
@@ -681,6 +682,24 @@ async function supaLoadSorted(table, col, asc=true) {
 async function supaDelete(table, id) {
   if (!supa) return;
   try { const r = await supa.from(table).delete().eq('id', id); if (r.error) throw r.error; } catch(e) { console.warn('supaDelete', table, e); }
+}
+async function supaDeleteWhere(table, filters) {
+  if (!supa) return;
+  try {
+    let q = supa.from(table).delete();
+    Object.entries(filters || {}).forEach(([col, val]) => { q = q.eq(col, val); });
+    const r = await q;
+    if (r.error) throw r.error;
+  } catch(e) { console.warn('supaDeleteWhere', table, e); }
+}
+async function supaUpdateWhere(table, values, filters) {
+  if (!supa) return;
+  try {
+    let q = supa.from(table).update(values);
+    Object.entries(filters || {}).forEach(([col, val]) => { q = q.eq(col, val); });
+    const r = await q;
+    if (r.error) throw r.error;
+  } catch(e) { console.warn('supaUpdateWhere', table, e); }
 }
 
 /* ── DB → app shape converters ── */
@@ -1628,11 +1647,11 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
           <div class="round-layout">
             <div class="round-rounds">
               <table class="round-table">
-                <thead><tr><th>Round</th>${['UDF','LDF','NDA','OTH'].map(p => html`<th style=${`color:${PARTIES[p].color}`}>${p}</th>`)}</tr></thead>
+                <thead><tr><th>Party</th>${d.rounds.map(r => html`<th class=${r.round===(cons.completedRounds||cons.round||0)?'cur':''} key=${r.round}>R${pad2N(r.round)}</th>`)}</tr></thead>
                 <tbody>
-                  ${d.rounds.map(r => html`<tr class=${`${r.counted?'done':'pending'} ${r.round===(cons.completedRounds||cons.round||0)?'cur':''}`} key=${r.round}>
-                    <td>R${pad2N(r.round)}</td>
-                    ${['UDF','LDF','NDA','OTH'].map(p => html`<td>${r.counted ? fmtIN(r.byParty[p]||0) : '—'}</td>`)}
+                  ${['UDF','LDF','NDA','OTH'].map(p => html`<tr class="done" key=${p}>
+                    <td class="party-cell" style=${`--pc:${PARTIES[p].color}`}>${p}</td>
+                    ${d.rounds.map(r => html`<td class=${r.round===(cons.completedRounds||cons.round||0)?'cur':''} key=${r.round}>${r.counted ? fmtIN(r.byParty[p]||0) : '—'}</td>`)}
                   </tr>`)}
                 </tbody>
               </table>
@@ -2053,33 +2072,38 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
     return cum;
   }, [draft, consCands]);
 
-  const save = (publish) => {
+  const save = async (publish) => {
     const next = candidates.map(c => {
       if (c.consId !== consId) return c;
-      const rounds = { ...(c.rounds || {}) };
+      const rounds = {};
       for (let r = 1; r <= MAX_ROUNDS; r++) {
         const v = draft[String(r)]?.[c.id];
-        if (v !== undefined && v !== '') rounds[r] = parseInt(v, 10) || 0;
+        if (v !== undefined && v !== '') {
+          const n = parseInt(v, 10) || 0;
+          if (n > 0) rounds[r] = n;
+        }
       }
       const postalVotes = parseInt(draft['postal']?.[c.id], 10) || 0;
       const total = Object.values(rounds).reduce((s,vv) => s + (parseInt(vv,10)||0), 0) + postalVotes;
       return { ...c, rounds, postalVotes, votes: total };
     });
-    // compute completed rounds = highest round with any data
     const updatedCons = constituencies.map(co => {
       if (co.id !== consId) return co;
-      const maxR = Math.max(0, ...Object.keys(next.find(c=>c.consId===consId)?.rounds||{}).map(r=>parseInt(r,10)).filter(n=>n>0));
+      const consNext = next.filter(c => c.consId === consId);
+      const maxR = Math.max(0, ...consNext.flatMap(c => Object.keys(c.rounds||{}).map(r => parseInt(r,10)).filter(n => n > 0)));
       return { ...co, completedRounds: maxR };
     });
     setCandidates(next);
     setConstituencies(updatedCons);
-    // Supabase sync
+
     const candidateRows = next.filter(c=>c.consId===consId).map(c => ({
       id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
       photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
       postal_votes: c.postalVotes||0
     }));
-    supaUpsertBatch('candidates', candidateRows);
+    await supaUpsertBatch('candidates', candidateRows);
+    await supaDeleteWhere('candidate_round_votes', { cons_id: consId });
+
     const roundRows = [];
     next.filter(c=>c.consId===consId).forEach(c => {
       Object.entries(c.rounds||{}).forEach(([r,v]) => {
@@ -2087,30 +2111,63 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
       });
       if (c.postalVotes) roundRows.push({ candidate_id: c.id, cons_id: c.consId, round_number: 0, votes: c.postalVotes });
     });
-    supaUpsertBatch('candidate_round_votes', roundRows, 'candidate_id,round_number');
-    if (publish) onPublish(`${cons?.name_ml || cons?.ml} · അപ്ഡേറ്റ്`);
-    onToast(publish ? 'പ്രസിദ്ധീകരിച്ചു ✓' : 'സേവ് ചെയ്തു ✓');
+    await supaUpsertBatch('candidate_round_votes', roundRows, 'candidate_id,round_number');
+    await supaUpdateWhere('constituencies', {
+      completed_rounds: updatedCons.find(c => c.id === consId)?.completedRounds || 0,
+      total_rounds: updatedCons.find(c => c.id === consId)?.totalRounds || totalRounds
+    }, { id: consId });
+
+    if (publish) onPublish(`${cons?.name_ml || cons?.ml} � update`);
+    onToast(publish ? 'Published and saved' : 'Saved');
   };
 
-  const resetConstituency = () => {
-    if (!confirm(`${cons?.name_ml} — എല്ലാ ഡാറ്റയും 0 ആക്കണോ? / Reset all data to 0?`)) return;
-    const next = candidates.map(c => {
-      if (c.consId !== consId) return c;
-      return { ...c, rounds:{}, postalVotes:0, votes:0 };
-    });
+  const resetConstituency = async () => {
+    if (!confirm(`${cons?.name_ml || cons?.name_en || consId} - Reset all vote data to 0?`)) return;
+    const next = candidates.map(c => c.consId !== consId ? c : { ...c, rounds:{}, postalVotes:0, votes:0 });
+    const updatedCons = constituencies.map(co => co.id === consId ? { ...co, completedRounds:0 } : co);
     setCandidates(next);
+    setConstituencies(updatedCons);
     setDraft({});
-    onToast(`${cons?.name_ml} — റീസെറ്റ് ചെയ്തു`);
+
+    await supaDeleteWhere('candidate_round_votes', { cons_id: consId });
+    await supaUpsertBatch('candidates', next.filter(c => c.consId === consId).map(c => ({
+      id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
+      photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
+      postal_votes: 0
+    })));
+    await supaUpdateWhere('constituencies', { completed_rounds:0 }, { id: consId });
+    onToast('Vote count reset');
   };
 
-  const resetAll = () => {
-    if (!confirm('എല്ലാ മണ്ഡലങ്ങളിലും ഡാറ്റ 0 ആക്കണോ? / Reset ALL constituencies to 0?')) return;
-    setCandidates(candidates.map(c => ({ ...c, rounds:{}, postalVotes:0, votes:0 })));
-    setConstituencies(constituencies.map(co => ({ ...co, completedRounds:0 })));
+  const resetAll = async () => {
+    if (!confirm('Reset ALL constituencies vote data to 0?')) return;
+    const next = candidates.map(c => ({ ...c, rounds:{}, postalVotes:0, votes:0 }));
+    const updatedCons = constituencies.map(co => ({ ...co, completedRounds:0 }));
+    setCandidates(next);
+    setConstituencies(updatedCons);
     setDraft({});
-    onToast('എല്ലാം റീസെറ്റ് ചെയ്തു');
-  };
 
+    if (supa) {
+      try {
+        const r = await supa.from('candidate_round_votes').delete().gte('round_number', 0);
+        if (r.error) throw r.error;
+      } catch(e) { console.warn('resetAll candidate_round_votes', e); }
+    }
+    await supaUpsertBatch('candidates', next.map(c => ({
+      id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
+      photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
+      postal_votes: 0
+    })));
+    await supaUpsertBatch('constituencies', updatedCons.map(co => ({
+      id: co.id,
+      name_ml: co.name_ml,
+      name_en: co.name_en,
+      completed_rounds: 0,
+      total_rounds: co.totalRounds || co.total || 15,
+      counting_status: co.countingStatus || 'live'
+    })));
+    onToast('All vote counts reset');
+  };
   const updateStatus = (newStatus) => {
     const updatedCons = constituencies.map(co => co.id === consId ? { ...co, countingStatus: newStatus } : co);
     setConstituencies(updatedCons);
