@@ -671,6 +671,19 @@ async function supaUpsertBatch(table, rows, conflict='id') {
   if (!supa || !rows.length) return;
   try { const r = await supa.from(table).upsert(rows, { onConflict: conflict }); if (r.error) throw r.error; } catch(e) { console.warn('supaUpsertBatch', table, e); }
 }
+async function supaInsertBatch(table, rows) {
+  if (!supa || !rows.length) return;
+  try { const r = await supa.from(table).insert(rows); if (r.error) throw r.error; } catch(e) { console.warn('supaInsertBatch', table, e); }
+}
+async function supaSaveRoundVotes(consId, rows) {
+  if (!supa) return;
+  let r = await supa.from('candidate_round_votes').delete().eq('cons_id', consId);
+  if (r.error) throw r.error;
+  if (rows.length) {
+    r = await supa.from('candidate_round_votes').upsert(rows, { onConflict: 'candidate_id,round_number' });
+    if (r.error) throw r.error;
+  }
+}
 async function supaLoad(table) {
   if (!supa) return null;
   try { const { data, error } = await supa.from(table).select('*'); if (error) throw error; return data; } catch(e) { console.warn('supaLoad', table, e); return null; }
@@ -720,7 +733,8 @@ function dbToCandidate(row, roundRows) {
   const postal = (roundRows || []).find(r => r.candidate_id === row.id && r.round_number === 0);
   const rounds = {};
   myRounds.forEach(r => { rounds[r.round_number] = r.votes; });
-  const totalVotes = myRounds.reduce((s,r)=>s+r.votes,0) + (postal?.votes||0);
+  const postalVotes = postal?.votes ?? row.postal_votes ?? 0;
+  const totalVotes = myRounds.reduce((s,r)=>s+r.votes,0) + postalVotes;
   return {
     id: row.id,
     consId: row.cons_id,
@@ -728,7 +742,7 @@ function dbToCandidate(row, roundRows) {
     name_ml: row.name_ml,
     party: row.party,
     votes: totalVotes,
-    postalVotes: postal?.votes || 0,
+    postalVotes,
     photoSeed: row.photo_seed || '',
     photoUrl: row.photo_url || '',
     symbolUrl: row.symbol_url || '',
@@ -996,7 +1010,7 @@ function Icon({d, size=16, stroke='currentColor', sw=2, fill='none'}) {
   return html`<svg width=${size} height=${size} viewBox="0 0 24 24" fill=${fill} stroke=${stroke} stroke-width=${sw} stroke-linecap="round" stroke-linejoin="round"><path d=${d}/></svg>`;
 }
 
-function FlashControls({ count=0, idx=0, paused=false, onToggle, onSeek, iconSize=12 }) {
+function FlashControls({ count=0, idx=0, paused=false, onToggle, onSeek, iconSize=12, labels=[] }) {
   if (count <= 0) return null;
   const active = ((idx % count) + count) % count;
   return html`<div class="flash-controls">
@@ -1004,14 +1018,17 @@ function FlashControls({ count=0, idx=0, paused=false, onToggle, onSeek, iconSiz
       <${Icon} d=${paused?I.play:I.pause} size=${iconSize}/>
     </button>` : null}
     <div class="panel-acc">
-      ${Array.from({length:count}).map((_,i) => html`<button
-        type="button"
-        class=${`dot ${active===i?'on':''}`}
-        title=${`Go to flash ${i+1}`}
-        aria-label=${`Go to flash ${i+1}`}
-        aria-current=${active===i?'true':'false'}
-        onClick=${() => onSeek && onSeek(i)}
-      ></button>`)}
+      ${Array.from({length:count}).map((_,i) => {
+        const label = labels[i] || labels[active] || '';
+        return html`<button
+          type="button"
+          class=${`dot ${active===i?'on':''}`}
+          title=${label}
+          aria-label=${label}
+          aria-current=${active===i?'true':'false'}
+          onClick=${() => onSeek && onSeek(i)}
+        ></button>`;
+      })}
     </div>
   </div>`;
 }
@@ -1414,11 +1431,15 @@ function AnalyticsFlash({ totals, totalLead, leadParty, pollStats, segments, con
     return () => clearInterval(t);
   }, [paused, pages]);
   const shown = lacRows.slice((idx%pages)*per, (idx%pages)*per + per);
+  const pageLabels = Array.from({length:pages}, (_,i) => {
+    const rows = lacRows.slice(i*per, i*per + per);
+    return rows.map(r => r.cons.name_ml || r.cons.name_en).filter(Boolean).join(' / ') || `Analytics page ${i+1}`;
+  });
 
   return html`<div class="panel afl">
     <div class="panel-h">
       <div class="panel-t">വിശകലനം · ANALYTICS</div>
-      <${FlashControls} count=${pages} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx}/>
+      <${FlashControls} count=${pages} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx} labels=${pageLabels}/>
     </div>
     <div class="afl-stage">
       <div class="afl-card afl-anim" key=${idx}>
@@ -1609,6 +1630,7 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
     return () => clearInterval(t);
   }, [paused, pages]);
   const shown = constituencies.slice((idx%pages)*per, (idx%pages)*per + per);
+  const pageLabels = constituencies.map(c => c.name_ml || c.name_en || c.id || '');
   const rowFor = (cons) => {
     const seg = segments.find(s => s.id === cons.id);
     const parties = ['UDF','LDF','NDA','OTH'];
@@ -1622,14 +1644,19 @@ function RoundWiseFlash({ candidates, constituencies, segments }) {
       });
       return { round:r, byParty, counted: r <= (cons.completedRounds||cons.round||0) };
     });
-    const cum = parties.reduce((o,p) => ({ ...o, [p]: seg?.[p.toLowerCase()+'_t'] || candidates.filter(c => c.consId===cons.id && c.party===p).reduce((s,c)=>s+(c.votes||0),0) }), {});
-    const postal = parties.reduce((o,p) => ({ ...o, [p]: (seg?.postal?.[p] || 0) + candidates.filter(c => c.consId===cons.id && c.party===p).reduce((s,c)=>s+(c.postalVotes||0),0) }), {});
+    const hasSegmentRounds = !!seg && Object.keys(seg.rounds || {}).length > 0;
+    const cum = parties.reduce((o,p) => {
+      const fromVisibleRounds = rounds.reduce((s,r) => s + (r.counted ? (parseInt(r.byParty[p],10)||0) : 0), 0);
+      const fromCandidates = candidates.filter(c => c.consId===cons.id && c.party===p).reduce((s,c)=>s+(parseInt(c.votes,10)||0),0);
+      return { ...o, [p]: hasSegmentRounds ? fromVisibleRounds : fromCandidates };
+    }, {});
+    const postal = parties.reduce((o,p) => ({ ...o, [p]: candidates.filter(c => c.consId===cons.id && c.party===p).reduce((s,c)=>s+(parseInt(c.postalVotes,10)||0),0) }), {});
     return { seg, rounds, cum, postal };
   };
   return html`<div class="panel roundflash">
     <div class="panel-h">
       <div class="panel-t">റൗണ്ട് തിരിച്ചുള്ള കക്ഷി വോട്ട് · PARTY ROUND COUNT</div>
-      <${FlashControls} count=${pages} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx}/>
+      <${FlashControls} count=${pages} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx} labels=${pageLabels}/>
     </div>
     <div class="round-stage">
       ${shown.map(cons => {
@@ -1696,6 +1723,7 @@ function BreakingFlash({ items }) {
   }, [paused, items.length]);
   if (!items.length) return null;
   const cur = items[idx % items.length];
+  const labels = items.map((item, i) => `${item.tag || 'Flash'}: ${item.msg || `Flash ${i+1}`}`);
   const now = new Date();
   return html`<div class="panel brk">
     <div class="panel-h">
@@ -1703,7 +1731,7 @@ function BreakingFlash({ items }) {
         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#dc2626;animation:liveDot 1s ease infinite"></span>
         FLASH
       </div>
-      <${FlashControls} count=${items.length} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx} iconSize=${13}/>
+      <${FlashControls} count=${items.length} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx} iconSize=${13} labels=${labels}/>
     </div>
     <div class="brk-stage">
       <div class="brk-card kind-${cur.kind}" key=${cur.id}>
@@ -1778,11 +1806,12 @@ function ConstituencyFlash({ candidates, constituencies }) {
   const leader = cands[0];
   const margin = leader && cands[1] ? leader.votes - cands[1].votes : 0;
   const done = (cons.completedRounds||cons.round||0) >= (cons.totalRounds||cons.total||15);
+  const labels = constituencies.map((c, i) => c.name_ml || c.name_en || `Constituency ${i+1}`);
   return html`<div class="panel cflash">
     <div class="panel-h">
       <div class="panel-t">മണ്ഡല സ്ഥാനാർത്ഥികൾ · CANDIDATES</div>
       <div style="display:flex;align-items:center;gap:6px">
-        <${FlashControls} count=${constituencies.length} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx}/>
+        <${FlashControls} count=${constituencies.length} idx=${idx} paused=${paused} onToggle=${() => setPaused(p => !p)} onSeek=${setIdx} labels=${labels}/>
         <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#fbbf24">${pad2N(activeIdx+1)} / ${pad2N(constituencies.length)}</span>
       </div>
     </div>
@@ -1929,13 +1958,13 @@ function AdminPanel(props) {
       </div>
       <div class="adm-body">
         ${page==='dashboard' && html`<${AdminDashboard} constituencies=${constituencies} candidates=${candidates} settings=${settings}/>`}
-        ${page==='votes' && html`<${AdminVoteUpdate} constituencies=${constituencies} setConstituencies=${setConstituencies} candidates=${candidates} setCandidates=${setCandidates} onPublish=${onPublish} onToast=${onToast}/>`}
+        ${page==='votes' && html`<${AdminVoteUpdate} constituencies=${constituencies} setConstituencies=${setConstituencies} candidates=${candidates} setCandidates=${setCandidates} segments=${segments} setSegments=${setSegments} onPublish=${onPublish} onToast=${onToast}/>`}
         ${page==='lac' && html`<${AdminLACBreakdown} segments=${segments} setSegments=${setSegments} onToast=${onToast}/>`}
         ${page==='candidates' && html`<${AdminCandidates} candidates=${candidates} setCandidates=${setCandidates} constituencies=${constituencies} onToast=${onToast}/>`}
         ${page==='announce' && html`<${AdminAnnouncement} announcements=${announcements} setAnnouncements=${setAnnouncements} onToast=${onToast}/>`}
         ${page==='ticker' && html`<${AdminTicker} ticker=${ticker} setTicker=${setTicker} onToast=${onToast}/>`}
         ${page==='social' && html`<${AdminSocialCards} constituencies=${constituencies} candidates=${candidates} segments=${segments} onToast=${onToast}/>`}
-        ${page==='settings' && html`<${AdminSettings} settings=${settings} setSettings=${setSettings} constituencies=${constituencies} onToast=${onToast}/>`}
+        ${page==='settings' && html`<${AdminSettings} settings=${settings} setSettings=${setSettings} constituencies=${constituencies} setConstituencies=${setConstituencies} onToast=${onToast}/>`}
         ${page==='users' && html`<${AdminUsers} users=${users} setUsers=${setUsers} curUser=${user} onToast=${onToast}/>`}
       </div>
     </main>
@@ -2025,7 +2054,7 @@ function AdminDashboard({ constituencies, candidates, settings }) {
 }
 
 /* ============== VOTE UPDATE — rounds in rows, parties in columns ============== */
-function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCandidates, onPublish, onToast }) {
+function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCandidates, segments=[], setSegments, onPublish, onToast }) {
   const [consId, setConsId] = useState(constituencies[0]?.id || '');
   const cons = useMemo(() => constituencies.find(c => c.id === consId) || constituencies[0], [consId, constituencies]);
   const totalRounds = cons?.totalRounds || 15;
@@ -2101,9 +2130,6 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
       photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
       postal_votes: c.postalVotes||0
     }));
-    await supaUpsertBatch('candidates', candidateRows);
-    await supaDeleteWhere('candidate_round_votes', { cons_id: consId });
-
     const roundRows = [];
     next.filter(c=>c.consId===consId).forEach(c => {
       Object.entries(c.rounds||{}).forEach(([r,v]) => {
@@ -2111,11 +2137,22 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
       });
       if (c.postalVotes) roundRows.push({ candidate_id: c.id, cons_id: c.consId, round_number: 0, votes: c.postalVotes });
     });
-    await supaUpsertBatch('candidate_round_votes', roundRows, 'candidate_id,round_number');
-    await supaUpdateWhere('constituencies', {
-      completed_rounds: updatedCons.find(c => c.id === consId)?.completedRounds || 0,
-      total_rounds: updatedCons.find(c => c.id === consId)?.totalRounds || totalRounds
-    }, { id: consId });
+
+    try {
+      if (supa && candidateRows.length) {
+        const candidateSave = await supa.from('candidates').upsert(candidateRows, { onConflict: 'id' });
+        if (candidateSave.error) throw candidateSave.error;
+      }
+      await supaSaveRoundVotes(consId, roundRows);
+      await supaUpdateWhere('constituencies', {
+        completed_rounds: updatedCons.find(c => c.id === consId)?.completedRounds || 0,
+        total_rounds: updatedCons.find(c => c.id === consId)?.totalRounds || totalRounds
+      }, { id: consId });
+    } catch(e) {
+      console.warn('vote save failed', e);
+      onToast(`DB save failed: ${e.message || e}`, 'err');
+      return;
+    }
 
     if (publish) onPublish(`${cons?.name_ml || cons?.ml} � update`);
     onToast(publish ? 'Published and saved' : 'Saved');
@@ -2125,8 +2162,10 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
     if (!confirm(`${cons?.name_ml || cons?.name_en || consId} - Reset all vote data to 0?`)) return;
     const next = candidates.map(c => c.consId !== consId ? c : { ...c, rounds:{}, postalVotes:0, votes:0 });
     const updatedCons = constituencies.map(co => co.id === consId ? { ...co, completedRounds:0 } : co);
+    const updatedSegments = segments.map(s => s.id === consId ? { ...s, round:0, udf:0, ldf:0, nda:0, oth:0, udf_t:0, ldf_t:0, nda_t:0, oth_t:0, rounds:{} } : s);
     setCandidates(next);
     setConstituencies(updatedCons);
+    setSegments && setSegments(updatedSegments);
     setDraft({});
 
     await supaDeleteWhere('candidate_round_votes', { cons_id: consId });
@@ -2136,6 +2175,7 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
       postal_votes: 0
     })));
     await supaUpdateWhere('constituencies', { completed_rounds:0 }, { id: consId });
+    await supaUpdateWhere('lac_segments', { current_round:0, udf_current:0, ldf_current:0, nda_current:0, oth_current:0, udf_total:0, ldf_total:0, nda_total:0, oth_total:0, rounds_json:'{}' }, { id: consId });
     onToast('Vote count reset');
   };
 
@@ -2143,8 +2183,10 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
     if (!confirm('Reset ALL constituencies vote data to 0?')) return;
     const next = candidates.map(c => ({ ...c, rounds:{}, postalVotes:0, votes:0 }));
     const updatedCons = constituencies.map(co => ({ ...co, completedRounds:0 }));
+    const updatedSegments = segments.map(s => ({ ...s, round:0, udf:0, ldf:0, nda:0, oth:0, udf_t:0, ldf_t:0, nda_t:0, oth_t:0, rounds:{} }));
     setCandidates(next);
     setConstituencies(updatedCons);
+    setSegments && setSegments(updatedSegments);
     setDraft({});
 
     if (supa) {
@@ -2166,6 +2208,7 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
       total_rounds: co.totalRounds || co.total || 15,
       counting_status: co.countingStatus || 'live'
     })));
+    await supaUpsertBatch('lac_segments', updatedSegments.map(segmentToDb));
     onToast('All vote counts reset');
   };
   const updateStatus = (newStatus) => {
@@ -2808,16 +2851,28 @@ function AdminTicker({ ticker, setTicker, onToast }) {
 }
 
 /* ============== SETTINGS ============== */
-function AdminSettings({ settings, setSettings, constituencies, onToast }) {
+function AdminSettings({ settings, setSettings, constituencies, setConstituencies, onToast }) {
   const [s, setS] = useState({ ...settings });
+  const [roundDraft, setRoundDraft] = useState(() => Object.fromEntries((constituencies || []).map(c => [c.id, c.totalRounds || c.total || 15])));
+
+  useEffect(() => {
+    setRoundDraft(Object.fromEntries((constituencies || []).map(c => [c.id, c.totalRounds || c.total || 15])));
+  }, [constituencies.length]);
 
   const flip = (k) => setS(p => ({...p, [k]: !p[k]}));
   const setVal = (k, v) => setS(p => ({...p, [k]: v}));
+  const setRoundVal = (id, value) => {
+    const n = Math.max(1, Math.min(99, parseInt(String(value).replace(/[^0-9]/g,''), 10) || 1));
+    setRoundDraft(p => ({ ...p, [id]: n }));
+  };
 
   const saveAll = () => {
+    const updatedCons = constituencies.map(c => ({ ...c, totalRounds: roundDraft[c.id] || c.totalRounds || c.total || 15 }));
     setSettings(s);
+    setConstituencies && setConstituencies(updatedCons);
     supaUpsert('app_settings', settingsToDb(s));
-    onToast('സജ്ജീകരണങ്ങൾ സേവ് ചെയ്തു');
+    supaUpsertBatch('constituencies', updatedCons.map(constituencyToDb));
+    onToast('Settings and round management saved');
   };
   const reset = () => {
     if (!confirm('Reset to defaults?')) return;
@@ -2912,6 +2967,23 @@ function AdminSettings({ settings, setSettings, constituencies, onToast }) {
             <option value="dark">Dark (Default)</option>
             <option value="midnight">Midnight Blue</option>
           </select>
+        </div>
+      </div>
+
+      <div class="set-grp">
+        <div class="set-grp-t">ROUND MANAGEMENT � MAX ROUNDS</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+          ${constituencies.map(c => html`<div class="set-row" key=${`round-${c.id}`} style="margin:0">
+            <div>
+              <div class="set-row-l">${c.name_en}</div>
+              <div class="set-row-s">${c.name_ml} � maximum rounds</div>
+            </div>
+            <input class="adm-inp num" type="text" inputmode="numeric"
+              value=${roundDraft[c.id] || ''}
+              placeholder="15"
+              onInput=${e => setRoundVal(c.id, e.target.value)}
+              style="width:90px;text-align:right;font-family:'JetBrains Mono',monospace"/>
+          </div>`)}
         </div>
       </div>
 
