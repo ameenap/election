@@ -1098,7 +1098,9 @@ function useClock() {
 function seatTallyFrom(constituencies, candidates) {
   const tally = { UDF:0, LDF:0, NDA:0, OTH:0 };
   for (const c of constituencies) {
-    const cands = candidates.filter(k => k.consId === c.id).sort((a,b) => b.votes - a.votes);
+    const cands = candidates
+      .filter(k => k.consId === c.id && (parseInt(k.votes, 10) || 0) > 0)
+      .sort((a,b) => (parseInt(b.votes,10)||0) - (parseInt(a.votes,10)||0));
     if (cands.length) tally[cands[0].party] = (tally[cands[0].party]||0) + 1;
   }
   return tally;
@@ -1109,9 +1111,12 @@ function totalsFrom(candidates) {
   return t;
 }
 function leadFor(consId, candidates) {
-  const cs = candidates.filter(k => k.consId === consId).sort((a,b) => b.votes - a.votes);
-  if (cs.length < 2) return { leader:cs[0], margin:0 };
-  return { leader:cs[0], margin: cs[0].votes - cs[1].votes };
+  const cs = candidates
+    .filter(k => k.consId === consId && (parseInt(k.votes, 10) || 0) > 0)
+    .sort((a,b) => (parseInt(b.votes,10)||0) - (parseInt(a.votes,10)||0));
+  if (!cs.length) return { leader:null, margin:0 };
+  if (cs.length < 2) return { leader:cs[0], margin:parseInt(cs[0].votes,10)||0 };
+  return { leader:cs[0], margin: (parseInt(cs[0].votes,10)||0) - (parseInt(cs[1].votes,10)||0) };
 }
 
 /* ====================================================================
@@ -1551,10 +1556,11 @@ function Header() {
 function SeatTally({ tally, total }) {
   const max = Math.max(1, ...Object.values(tally));
   const top = Object.entries(tally).reduce((a,[k,v]) => v>a[1]?[k,v]:a, ['',-1])[0];
+  const counted = Object.values(tally).reduce((s,v) => s + (parseInt(v,10)||0), 0);
   return html`<div class="panel tally">
     <div class="panel-h">
       <div class="panel-t">സീറ്റ് നില · SEATS</div>
-      <span class="mono" style="font-size:11px;color:#fbbf24">${total}/${total}</span>
+      <span class="mono" style="font-size:11px;color:#fbbf24">${counted}/${total}</span>
     </div>
     <div class="tally-rows">
       ${['UDF','LDF','NDA','OTH']
@@ -1569,7 +1575,7 @@ function SeatTally({ tally, total }) {
     </div>
     <div class="tally-tot">
       <span class="tally-tot-l">ആകെ സീറ്റുകൾ</span>
-      <span class="tally-tot-r">${pad2N(total)} / ${pad2N(total)}</span>
+      <span class="tally-tot-r">${pad2N(counted)} / ${pad2N(total)}</span>
     </div>
   </div>`;
 }
@@ -1600,9 +1606,8 @@ function AnalyticsFlash({ totals, totalLead, leadParty, segments, constituencies
   const [paused, setPaused] = useState(false);
   const per = 3;
   const lacRows = useMemo(() => constituencies.map(c => {
-    const cs = candidates.filter(k => k.consId === c.id).sort((a,b) => b.votes - a.votes);
-    const leader = cs[0], runner = cs[1];
-    return { cons:c, leader, margin: leader && runner ? leader.votes - runner.votes : 0 };
+    const lead = leadFor(c.id, candidates);
+    return { cons:c, leader:lead.leader, margin:lead.margin };
   }), [constituencies, candidates]);
   const pages = Math.max(1, Math.ceil(lacRows.length / per));
   useEffect(() => {
@@ -2172,7 +2177,7 @@ function AdminPanel(props) {
       </div>
       <div class="adm-body">
         ${page==='dashboard' && html`<${AdminDashboard} constituencies=${constituencies} candidates=${candidates} settings=${settings}/>`}
-        ${page==='votes' && html`<${AdminVoteUpdate} user=${user} constituencies=${constituencies} setConstituencies=${setConstituencies} candidates=${candidates} setCandidates=${setCandidates} segments=${segments} setSegments=${setSegments} onPublish=${onPublish} onToast=${onToast}/>`}
+        ${page==='votes' && html`<${AdminVoteUpdate} user=${user} constituencies=${constituencies} setConstituencies=${setConstituencies} candidates=${candidates} setCandidates=${setCandidates} segments=${segments} setSegments=${setSegments} setRawRoundRows=${props.setRawRoundRows} onPublish=${onPublish} onToast=${onToast}/>`}
         ${page==='lac' && html`<${AdminLACBreakdown} segments=${segments} setSegments=${setSegments} onToast=${onToast}/>`}
         ${page==='candidates' && html`<${AdminCandidates} candidates=${candidates} setCandidates=${setCandidates} constituencies=${constituencies} onToast=${onToast}/>`}
         ${page==='announce' && html`<${AdminAnnouncement} announcements=${announcements} setAnnouncements=${setAnnouncements} onToast=${onToast}/>`}
@@ -2269,7 +2274,7 @@ function AdminDashboard({ constituencies, candidates, settings }) {
 }
 
 /* ============== VOTE UPDATE — rounds in rows, parties in columns ============== */
-function AdminVoteUpdate({ user, constituencies, setConstituencies, candidates, setCandidates, segments=[], setSegments, onPublish, onToast }) {
+function AdminVoteUpdate({ user, constituencies, setConstituencies, candidates, setCandidates, segments=[], setSegments, setRawRoundRows, onPublish, onToast }) {
   const [consId, setConsId] = useState(constituencies[0]?.id || '');
   const cons = useMemo(() => constituencies.find(c => c.id === consId) || constituencies[0], [consId, constituencies]);
   const totalRounds = cons?.totalRounds || 15;
@@ -2426,17 +2431,31 @@ function AdminVoteUpdate({ user, constituencies, setConstituencies, candidates, 
     setCandidates(next);
     setConstituencies(updatedCons);
     setSegments && setSegments(updatedSegments);
+    setRawRoundRows && setRawRoundRows(prev => (prev || []).filter(r => r.cons_id !== consId));
     setDraft({});
 
-    await supaDeleteWhere('candidate_round_votes', { cons_id: consId });
-    await supaUpsertBatch('candidates', next.filter(c => c.consId === consId).map(c => ({
-      id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
-      photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
-      postal_votes: 0
-    })));
-    await supaUpdateWhere('constituencies', { completed_rounds:0 }, { id: consId });
-    await supaUpdateWhere('lac_segments', { current_round:0, udf_current:0, ldf_current:0, nda_current:0, oth_current:0, udf_total:0, ldf_total:0, nda_total:0, oth_total:0, rounds_json:'{}' }, { id: consId });
-    onToast('Vote count reset');
+    try {
+      if (supa) {
+        let r = await supa.from('candidate_round_votes').delete().eq('cons_id', consId);
+        if (r.error) throw r.error;
+      }
+      const resetRows = next.filter(c => c.consId === consId).map(c => ({
+        id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
+        photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
+        postal_votes: 0
+      }));
+      if (supa && resetRows.length) {
+        let r = await supa.from('candidates').upsert(resetRows, { onConflict:'id' });
+        if (r.error) throw r.error;
+        r = await supa.from('constituencies').update({ completed_rounds:0 }).eq('id', consId);
+        if (r.error) throw r.error;
+      }
+      await supaUpdateWhere('lac_segments', { current_round:0, udf_current:0, ldf_current:0, nda_current:0, oth_current:0, udf_total:0, ldf_total:0, nda_total:0, oth_total:0, rounds_json:'{}' }, { id: consId });
+      onToast('Vote count reset');
+    } catch(e) {
+      console.warn('resetConstituency failed', e);
+      onToast(`Reset failed: ${e.message || e}`, 'err');
+    }
   };
 
   const resetAll = async () => {
@@ -2448,29 +2467,35 @@ function AdminVoteUpdate({ user, constituencies, setConstituencies, candidates, 
     setCandidates(next);
     setConstituencies(updatedCons);
     setSegments && setSegments(updatedSegments);
+    setRawRoundRows && setRawRoundRows([]);
     setDraft({});
 
-    if (supa) {
-      try {
-        const r = await supa.from('candidate_round_votes').delete().gte('round_number', 0);
+    try {
+      if (supa) {
+        let r = await supa.from('candidate_round_votes').delete().gte('round_number', 0);
         if (r.error) throw r.error;
-      } catch(e) { console.warn('resetAll candidate_round_votes', e); }
+        r = await supa.from('candidates').upsert(next.map(c => ({
+          id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
+          photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
+          postal_votes: 0
+        })), { onConflict:'id' });
+        if (r.error) throw r.error;
+        r = await supa.from('constituencies').upsert(updatedCons.map(co => ({
+          id: co.id,
+          name_ml: co.name_ml,
+          name_en: co.name_en,
+          completed_rounds: 0,
+          total_rounds: co.totalRounds || co.total || 15,
+          counting_status: co.countingStatus || 'live'
+        })), { onConflict:'id' });
+        if (r.error) throw r.error;
+      }
+      await supaUpsertBatch('lac_segments', updatedSegments.map(segmentToDb));
+      onToast('All vote counts reset');
+    } catch(e) {
+      console.warn('resetAll failed', e);
+      onToast(`Reset all failed: ${e.message || e}`, 'err');
     }
-    await supaUpsertBatch('candidates', next.map(c => ({
-      id: c.id, cons_id: c.consId, name_ml: c.name||c.name_ml, party: c.party,
-      photo_url: c.photoUrl||'', symbol_url: c.symbolUrl||'', photo_seed: c.photoSeed||'',
-      postal_votes: 0
-    })));
-    await supaUpsertBatch('constituencies', updatedCons.map(co => ({
-      id: co.id,
-      name_ml: co.name_ml,
-      name_en: co.name_en,
-      completed_rounds: 0,
-      total_rounds: co.totalRounds || co.total || 15,
-      counting_status: co.countingStatus || 'live'
-    })));
-    await supaUpsertBatch('lac_segments', updatedSegments.map(segmentToDb));
-    onToast('All vote counts reset');
   };
   const updateStatus = async (newStatus) => {
     const updatedCons = constituencies.map(co => co.id === consId ? { ...co, countingStatus: newStatus } : co);
@@ -4502,7 +4527,7 @@ function App() {
         const postal = myRows.find(r => r.round_number === 0);
         const rounds = {};
         myRounds.forEach(r => { rounds[r.round_number] = r.votes; });
-        const postalVotes = postal?.votes ?? c.postalVotes ?? 0;
+        const postalVotes = postal?.votes ?? 0;
         const totalVotes = myRounds.reduce((s, r) => s + r.votes, 0) + postalVotes;
         return { ...c, votes: totalVotes, postalVotes, rounds };
       });
@@ -4740,6 +4765,7 @@ function App() {
       announcements=${announcements} setAnnouncements=${setAnnouncements}
       users=${users} setUsers=${setUsers}
       settings=${settings} setSettings=${setSettings}
+      setRawRoundRows=${setRawRoundRows}
     />`}
 
     ${updateOverlay && html`<${UpdateOverlay}
