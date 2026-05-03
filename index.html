@@ -175,7 +175,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .lead-cons.udf{background:linear-gradient(90deg,#1845cc,#3b82f6)}
 .lead-cons.ldf{background:linear-gradient(90deg,#a81020,#ef4444)}
 .lead-cons.nda{background:linear-gradient(90deg,#cc5500,#fb923c)}
-.lead-rnd{flex:0 0 auto;max-width:100px;min-width:78px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Inter',sans-serif;font-size:8.5px;font-weight:900;background:rgba(3,7,24,.48);padding:4px 7px;border-radius:5px;color:#fff;letter-spacing:.55px;border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(0,0,0,.16)}
+.lead-rnd{flex:0 0 auto;max-width:132px;min-width:112px;text-align:center;overflow:visible;text-overflow:clip;white-space:nowrap;font-family:'Inter',sans-serif;font-size:7.2px;font-weight:900;background:rgba(3,7,24,.48);padding:4px 6px;border-radius:5px;color:#fff;letter-spacing:.25px;border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(0,0,0,.16)}
 .lead-body{display:flex;align-items:center;gap:8px;padding:8px 10px;flex:1;min-height:0}
 .lead-photo{position:relative;flex-shrink:0;width:76px;height:76px;display:flex;align-items:center;justify-content:center}
 .lead-photo-glow{position:absolute;inset:-8px;border-radius:50%;opacity:.4;filter:blur(10px);z-index:0;pointer-events:none}
@@ -201,7 +201,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .lead-runner-votes{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:9.5px;color:rgba(255,255,255,.68);flex-shrink:0;margin-left:2px}
 .lead-foot{padding:0 10px;height:36px;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;overflow:hidden;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.25)}
 .lead-rnd-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.lead-rnd-lbl{font-family:'Inter',sans-serif;font-weight:800;font-size:7.5px;color:rgba(255,255,255,.58);letter-spacing:.9px;text-transform:uppercase}
+.lead-rnd-lbl{font-family:'Inter',sans-serif;font-weight:900;font-size:8.8px;color:rgba(255,255,255,.7);letter-spacing:.55px;text-transform:uppercase}
 .lead-rnd-num{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:9px;color:rgba(255,255,255,.68);letter-spacing:.3px}
 .lead-prog-track{height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.05)}
 .lead-prog-fill{height:100%;border-radius:99px;transition:width 1s cubic-bezier(.16,1,.3,1)}
@@ -3079,18 +3079,45 @@ function AdminAnnouncement({ announcements, setAnnouncements, onToast }) {
 /* ============== WHATSAPP UPDATE ============== */
 function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
   const [consId, setConsId] = useState(constituencies[0]?.id || '');
+  const [roundFrom, setRoundFrom] = useState('all');
+  const [roundTo, setRoundTo] = useState('all');
   const textRef = useRef(null);
-  const cons = useMemo(() => constituencies.find(c => c.id === consId) || constituencies[0], [constituencies, consId]);
+  const cons = useMemo(() => {
+    if (consId === 'all') {
+      return {
+        id:'all',
+        name_ml:'All constituencies',
+        name_en:'All constituencies',
+        completedRounds: constituencies.reduce((s,c) => s + (c.completedRounds || c.round || 0), 0),
+        totalRounds: constituencies.reduce((s,c) => s + (c.totalRounds || c.total || 15), 0)
+      };
+    }
+    return constituencies.find(c => c.id === consId) || constituencies[0];
+  }, [constituencies, consId]);
 
   useEffect(() => {
-    if (!constituencies.some(c => c.id === consId)) setConsId(constituencies[0]?.id || '');
+    if (consId !== 'all' && !constituencies.some(c => c.id === consId)) setConsId(constituencies[0]?.id || '');
   }, [constituencies.length]);
+
+  const maxWhatsRound = Math.max(1, ...((constituencies || []).map(c => parseInt(c.totalRounds || c.total || 15, 10) || 15)));
+  const selectedVoteTotal = (candidate) => {
+    if (roundFrom === 'all' && roundTo === 'all') return parseInt(candidate.votes, 10) || 0;
+    const from = roundFrom === 'all' ? 1 : (parseInt(roundFrom, 10) || 1);
+    const to = roundTo === 'all' ? maxWhatsRound : (parseInt(roundTo, 10) || maxWhatsRound);
+    const lo = Math.min(from, to);
+    const hi = Math.max(from, to);
+    return Object.entries(candidate.rounds || {}).reduce((sum, [r, v]) => {
+      const rn = parseInt(r, 10);
+      if (Number.isNaN(rn) || rn < lo || rn > hi) return sum;
+      return sum + (parseInt(v, 10) || 0);
+    }, 0);
+  };
 
   const generated = useMemo(() => {
     if (!cons) return '';
     const rows = candidates
-      .filter(c => c.consId === cons.id)
-      .map(c => ({ ...c, totalVotes: parseInt(c.votes, 10) || 0 }))
+      .filter(c => consId === 'all' || c.consId === cons.id)
+      .map(c => ({ ...c, totalVotes: selectedVoteTotal(c) }))
       .sort((a,b) => b.totalVotes - a.totalVotes);
     const top = rows[0];
     const second = rows[1];
@@ -3099,6 +3126,38 @@ function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
       day:'2-digit', month:'2-digit', year:'numeric',
       hour:'2-digit', minute:'2-digit', hour12:true
     });
+    if (consId === 'all') {
+      const lines = [
+        'കേരള നിയമസഭ തിരഞ്ഞെടുപ്പ് ഫലം 2026',
+        '',
+        `Updated: ${updated}`,
+        ''
+      ];
+      constituencies.forEach((cns, blockIndex) => {
+        const rows = candidates
+          .filter(c => c.consId === cns.id)
+          .map(c => ({ ...c, totalVotes: selectedVoteTotal(c) }))
+          .sort((a,b) => b.totalVotes - a.totalVotes);
+        const top = rows[0];
+        const second = rows[1];
+        const lead = top ? Math.max(0, (top.totalVotes || 0) - (second?.totalVotes || 0)) : 0;
+        if (blockIndex > 0) lines.push('');
+        lines.push(
+          `മണ്ഡലം: ${cns.name_ml || cns.name || cns.name_en || ''}`,
+          `റൗണ്ട് ${pad2N(cns.completedRounds || cns.round || 0)} / ${pad2N(cns.totalRounds || cns.total || 15)}`,
+          ''
+        );
+        rows.forEach((c, i) => {
+          const candidateName = c.name_ml || c.name || '';
+          const party = c.party || '';
+          const suffix = i === 0 ? `, ഭൂരിപക്ഷം ${fmtIN(lead)}` : '';
+          lines.push(`${i + 1}. ${party} - ${candidateName} - ${fmtIN(c.totalVotes)}${suffix}`);
+        });
+        if (!rows.length) lines.push('സ്ഥാനാർത്ഥി വിവരങ്ങൾ ലഭ്യമല്ല');
+      });
+      lines.push('', 'ജില്ലാ ഇൻഫർമേഷൻ ഓഫീസ്, കോഴിക്കോട്');
+      return lines.join('\n');
+    }
     const lines = [
       'കേരള നിയമസഭ തിരഞ്ഞെടുപ്പ് ഫലം 2026',
       '',
@@ -3117,7 +3176,7 @@ function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
     if (!rows.length) lines.push('സ്ഥാനാർഥി വിവരങ്ങൾ ലഭ്യമല്ല');
     lines.push('', 'ജില്ലാ ഇൻഫർമേഷൻ ഓഫീസ്, കോഴിക്കോട്');
     return lines.join('\n');
-  }, [cons, candidates]);
+  }, [cons, consId, constituencies, candidates, roundFrom, roundTo, maxWhatsRound]);
 
   const copyText = async () => {
     try {
@@ -3135,8 +3194,8 @@ function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
   };
 
   const sortedPreview = cons ? candidates
-    .filter(c => c.consId === cons.id)
-    .map(c => ({ ...c, totalVotes: parseInt(c.votes, 10) || 0 }))
+    .filter(c => consId === 'all' || c.consId === cons.id)
+    .map(c => ({ ...c, totalVotes: selectedVoteTotal(c) }))
     .sort((a,b) => b.totalVotes - a.totalVotes) : [];
 
   return html`<div>
@@ -3145,8 +3204,23 @@ function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
       <div class="adm-bar" style="margin-bottom:12px;align-items:flex-end">
         <div class="adm-fld" style="min-width:280px;flex:1">
           <label>Constituency</label>
-          <select class="adm-inp" value=${cons?.id || ''} onChange=${e => setConsId(e.target.value)}>
+          <select class="adm-inp" value=${consId} onChange=${e => setConsId(e.target.value)}>
+            <option value="all">All constituencies</option>
             ${constituencies.map(c => html`<option key=${c.id} value=${c.id}>${c.name_ml || c.name_en} · ${c.name_en || ''}</option>`)}
+          </select>
+        </div>
+        <div class="adm-fld" style="min-width:170px;flex:1">
+          <label>Round From</label>
+          <select class="adm-inp" value=${roundFrom} onChange=${e => setRoundFrom(e.target.value)}>
+            <option value="all">All rounds</option>
+            ${Array.from({length:maxWhatsRound}, (_,i) => html`<option key=${`wa-from-${i+1}`} value=${i+1}>Round ${pad2N(i+1)}</option>`)}
+          </select>
+        </div>
+        <div class="adm-fld" style="min-width:170px;flex:1">
+          <label>Round To</label>
+          <select class="adm-inp" value=${roundTo} onChange=${e => setRoundTo(e.target.value)}>
+            <option value="all">All rounds</option>
+            ${Array.from({length:maxWhatsRound}, (_,i) => html`<option key=${`wa-to-${i+1}`} value=${i+1}>Round ${pad2N(i+1)}</option>`)}
           </select>
         </div>
         <button class="adm-btn primary" onClick=${copyText}><${Icon} d=${I.copy} size=${13}/> Copy for WhatsApp</button>
@@ -3277,9 +3351,10 @@ function AdminSettings({ settings, setSettings, constituencies, setConstituencie
   };
   const setExportVal = (k, v) => setExportFilter(p => ({ ...p, [k]: v }));
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const maxExportRound = Math.max(1, ...((constituencies || []).map(c => parseInt(c.totalRounds || c.total || 15, 10) || 15)));
   const exportRows = () => {
-    const minR = parseInt(exportFilter.minRound, 10) || 1;
-    const maxR = parseInt(exportFilter.maxRound, 10) || 99;
+    const minR = exportFilter.minRound === 'all' ? 1 : (parseInt(exportFilter.minRound, 10) || 1);
+    const maxR = exportFilter.maxRound === 'all' ? 99 : (parseInt(exportFilter.maxRound, 10) || 99);
     const consList = (constituencies || []).filter(c => exportFilter.consId === 'all' || c.id === exportFilter.consId);
     const summary = [];
     const rounds = [];
@@ -3318,7 +3393,7 @@ function AdminSettings({ settings, setSettings, constituencies, setConstituencie
     const filterText = [
       `Constituency: ${exportFilter.consId === 'all' ? 'All' : (constituencies.find(c => c.id === exportFilter.consId)?.name_en || exportFilter.consId)}`,
       `Party: ${exportFilter.party === 'all' ? 'All' : exportFilter.party}`,
-      `Rounds: ${exportFilter.minRound || '1'} to ${exportFilter.maxRound || 'All'}`,
+      `Rounds: ${!exportFilter.minRound || exportFilter.minRound === 'all' ? 'All' : exportFilter.minRound} to ${!exportFilter.maxRound || exportFilter.maxRound === 'all' ? 'All' : exportFilter.maxRound}`,
       `Postal votes: ${exportFilter.includePostal ? 'Included' : 'Excluded'}`
     ].join(' | ');
     const summaryRows = summary.map(r => `<tr><td>${esc(r.cons)}</td><td>${esc(r.consEn)}</td><td>${esc(r.candidate)}</td><td>${esc(r.party)}</td><td>${r.roundVotes}</td><td>${r.postalVotes}</td><td>${r.totalVotes}</td><td>${r.completedRounds}/${r.totalRounds}</td><td>${esc(r.status)}</td></tr>`).join('');
@@ -3518,11 +3593,17 @@ function AdminSettings({ settings, setSettings, constituencies, setConstituencie
           </div>
           <div class="adm-fld">
             <label>Round From</label>
-            <input class="adm-inp" inputmode="numeric" placeholder="1" value=${exportFilter.minRound} onInput=${e => setExportVal('minRound', e.target.value.replace(/[^0-9]/g,''))}/>
+            <select class="adm-inp" value=${exportFilter.minRound || 'all'} onChange=${e => setExportVal('minRound', e.target.value)}>
+              <option value="all">All rounds</option>
+              ${Array.from({length:maxExportRound}, (_,i) => html`<option key=${`from-${i+1}`} value=${i+1}>Round ${pad2N(i+1)}</option>`)}
+            </select>
           </div>
           <div class="adm-fld">
             <label>Round To</label>
-            <input class="adm-inp" inputmode="numeric" placeholder="All" value=${exportFilter.maxRound} onInput=${e => setExportVal('maxRound', e.target.value.replace(/[^0-9]/g,''))}/>
+            <select class="adm-inp" value=${exportFilter.maxRound || 'all'} onChange=${e => setExportVal('maxRound', e.target.value)}>
+              <option value="all">All rounds</option>
+              ${Array.from({length:maxExportRound}, (_,i) => html`<option key=${`to-${i+1}`} value=${i+1}>Round ${pad2N(i+1)}</option>`)}
+            </select>
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -4185,6 +4266,113 @@ function CandidateCardSVG({ constituencies, candidates, time }) {
   </svg>`;
 }
 
+/* Uploaded SM Template (1).svg layout override for ALL CONSTITUENCY LEADS */
+function CandidateCardSVG({ constituencies, candidates, time }) {
+  const W = 2400, H = 3000;
+  const entries = constituencies.map(cons => {
+    const cands = candidates.filter(c=>c.consId===cons.id).sort((a,b)=>b.votes-a.votes);
+    const top = cands[0]; const second = cands[1];
+    const lead = (top && second) ? top.votes - second.votes : 0;
+    return { cons, top, second, lead };
+  }).filter(e => e.top);
+  const tally = seatTallyFrom(constituencies, candidates);
+  const shownRound = Math.max(0, ...constituencies.map(c => c.completedRounds || c.round || 0));
+  const maxRound = Math.max(1, ...constituencies.map(c => c.totalRounds || c.total || 15));
+  const leftYs = [665, 962, 1272, 1596, 1900, 2205, 2515];
+  const rightYs = [673, 970, 1280, 1596, 1900, 2205];
+  const posFor = (i) => i < leftYs.length ? { x:211, y:leftYs[i] } : { x:1131, y:rightYs[i-leftYs.length] };
+  const partyFill = (p) => p === 'OTH' ? '#6e7274' : (PARTIES[p]?.color || '#ed1c24');
+  const trimText = (v, n=24) => {
+    const s = String(v || '');
+    return s.length > n ? `${s.slice(0, n-1)}…` : s;
+  };
+  const splitText = (v, max=18) => {
+    const s = String(v || '').trim();
+    if (s.length <= max) return [s];
+    const words = s.split(/\s+/);
+    const lines = [''];
+    for (const word of words) {
+      const current = lines[lines.length - 1];
+      const next = current ? `${current} ${word}` : word;
+      if (next.length <= max || !current) {
+        lines[lines.length - 1] = next;
+      } else if (lines.length < 2) {
+        lines.push(word);
+      } else {
+        lines[1] = trimText(`${lines[1]} ${word}`, max + 3);
+      }
+    }
+    return lines.slice(0, 2).map(line => trimText(line, max + 3));
+  };
+
+  return html`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="100%" preserveAspectRatio="xMidYMid meet" class="sc-frame">
+    <defs>
+      <linearGradient id="sm-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f1ed"/><stop offset="1" stop-color="#dfddd3"/></linearGradient>
+      <radialGradient id="sm-blue-glow" cx="50%" cy="32%" r="78%"><stop offset="0" stop-color="#0b315d" stop-opacity="0.5"/><stop offset="1" stop-color="#001226" stop-opacity="0"/></radialGradient>
+      <pattern id="sm-paper" width="96" height="96" patternUnits="userSpaceOnUse"><path d="M0 48H96M48 0V96" stroke="#062242" stroke-opacity="0.026" stroke-width="2"/></pattern>
+      <filter id="sm-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#001226" flood-opacity="0.28"/></filter>
+    </defs>
+    <rect width=${W} height=${H} fill="url(#sm-bg)"/>
+    <rect width=${W} height=${H} fill="url(#sm-paper)"/>
+    <ellipse cx="1190" cy="1180" rx="1500" ry="1650" fill="url(#sm-blue-glow)"/>
+    <rect x="-35" y="-36" width="2471" height="3073" fill="#062242" opacity="0.22"/>
+    <g transform="translate(905,122)">
+      <rect x="0" y="0" width="143" height="92" rx="12" fill="rgba(255,255,255,0.82)"/>
+      <${CardDIOEmblem} x="24" y="2" size="92"/>
+    </g>
+    <text x="1081" y="165" font-family="Anek Malayalam,sans-serif" font-weight="500" font-size="43" fill="#fff">ജില്ലാ ഇൻഫർമേഷൻ</text>
+    <text x="1081" y="218" font-family="Anek Malayalam,sans-serif" font-weight="500" font-size="43" fill="#fff">ഓഫീസ് കോഴിക്കോട്</text>
+    <rect x="640" y="263" width="1121" height="97" fill="#ffde00"/>
+    <rect x="378" y="383" width="1644" height="97" fill="#ffde00"/>
+    <text x="1210" y="335" text-anchor="middle" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="74" fill="#001226">നിയമസഭ തിരഞ്ഞെടുപ്പ് 2026</text>
+    <text x="1212" y="456" text-anchor="middle" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="73" fill="#001226">കോഴിക്കോട് ജില്ലാ മണ്ഡലം തിരിച്ചുള്ള നില</text>
+    <text x="692" y="572" font-family="Anek Malayalam,sans-serif" font-weight="600" font-size="62" fill="#fff">റൗണ്ട്  ${pad2N(shownRound)}/${pad2N(maxRound)}</text>
+    <text x="1279" y="566" font-family="Anek Malayalam,sans-serif" font-weight="600" font-size="50" fill="#fff">UPDATED : <tspan fill="#ffde00">${fmtTimeShort(time)}</tspan></text>
+    ${entries.map((e, i) => {
+      const pos = posFor(i);
+      const partyColor = partyFill(e.top.party);
+      const nameLines = splitText(e.top.name_ml || e.top.name || '', 19);
+      const consName = trimText(e.cons.name_ml || e.cons.ml || e.cons.name_en || '', 20);
+      const photoUrl = safeImageUrl(e.top.photoUrl || '');
+      const clipId = `sm-photo-${String(e.top.id || e.cons.id || i).replace(/[^a-zA-Z0-9_-]/g,'')}`;
+      return html`<g key=${e.cons.id} transform=${`translate(${pos.x},${pos.y})`} filter="url(#sm-shadow)">
+        <defs>
+          <clipPath id=${clipId}><rect x="0" y="0" width="180" height="234" rx="33"/></clipPath>
+        </defs>
+        <path d="M196,119H627a21,21,0,0,1,21,21v72a21,21,0,0,1-21,21H196a21,21,0,0,1-21-21V140A21,21,0,0,1,196,119Z" fill="none" stroke="#fff" stroke-width="2"/>
+        <path d="M686,42h118a11,11,0,0,1,11,11v114a11,11,0,0,1-11,11H686a11,11,0,0,1-11-11V53A11,11,0,0,1,686,42Z" fill="none" stroke="#fff" stroke-width="1"/>
+        <path d="M180,49H643a15,15,0,0,1,15,15v60a15,15,0,0,1-15,15H180Z" fill="#ffde00"/>
+        <path d="M165,9H328V51H165Z" fill=${partyColor}/>
+        <path d="M674,156H911V201H674Z" fill="#ffde00"/>
+        <path d="M33,0H146.5a33,33,0,0,1,33,33V201.4a33,33,0,0,1-33,33H33a33,33,0,0,1-33-33V33A33,33,0,0,1,33,0Z" fill="#fff"/>
+        ${photoUrl
+          ? html`<image href=${photoUrl} x="0" y="0" width="180" height="234" preserveAspectRatio="xMidYMin slice" clip-path=${`url(#${clipId})`}/><rect x="0" y="0" width="180" height="234" rx="33" fill="none" stroke=${partyColor} stroke-width="4"/>`
+          : html`<${CardAvatar} x="0" y="0" size="180" party=${e.top.party} seed=${e.top.photoSeed||e.top.id} ringColor=${partyColor}/>`}
+        <circle cx="160" cy="211" r="70" fill="#062242"/>
+        <${CardPartySymbol} x="118" y="169" size="84" party=${e.top.party}/>
+        <${CardPartySymbol} x="838" y="54" size="82" party=${e.top.party}/>
+        <text x="246" y="41" text-anchor="middle" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="30" fill="#fff">${e.top.party}</text>
+        ${nameLines.map((line, idx) => html`<text key=${idx} x="202" y=${nameLines.length === 1 ? 96 : 82 + idx * 31} font-family="Anek Malayalam,sans-serif" font-weight="800" font-size=${nameLines.length === 1 ? 31 : 28} fill="#062242">${line}</text>`)}
+        <text x="202" y="129" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="19" fill="#062242">${consName} മണ്ഡലം</text>
+        <text x="248" y="166" font-family="Anek Malayalam,sans-serif" font-weight="500" font-size="23" fill="#fff">മൊത്തം ലഭിച്ച വോട്ട്</text>
+        <text x="304" y="215" font-family="Anek Malayalam,sans-serif" font-weight="800" font-size="38" fill="#fff">${fmtIN(e.top.votes||0)}</text>
+        <text x="684" y="86" font-family="Anek Malayalam,sans-serif" font-weight="500" font-size="48" fill="#fff">വോട്ട്</text>
+        <text x="684" y="140" font-family="Anek Malayalam,sans-serif" font-weight="500" font-size="48" fill="#fff">ലീഡ്</text>
+        <text x="682" y="191" font-family="Anek Malayalam,sans-serif" font-weight="800" font-size="39" fill="#001226">${fmtIN(e.lead)}</text>
+      </g>`;
+    })}
+    <g transform="translate(540,2820)">
+      ${['LDF','NDA','UDF','OTH'].map((p,i) => html`<g key=${p} transform=${`translate(${i*350},0)`}>
+        <path d="M0,0H283a15,15,0,0,1,15,15V86a15,15,0,0,1-15,15H0Z" fill=${partyFill(p)}/>
+        <text x="149" y="37" text-anchor="middle" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="34" fill="#fff">${p}</text>
+        <text x="149" y="83" text-anchor="middle" font-family="Anek Malayalam,sans-serif" font-weight="700" font-size="46" fill="#fff">${pad2N(tally[p]||0)}</text>
+      </g>`)}
+    </g>
+    <text x="280" y="2846" font-family="Anek Malayalam,sans-serif" font-weight="600" font-size="50" fill="#fff">KERALA LEGISLATIVE</text>
+    <text x="280" y="2908" font-family="Anek Malayalam,sans-serif" font-weight="600" font-size="50" fill="#fff">ASSEMBLY ELECTION KERALA LEGISLATIVE ASSEMBLY ELECTION <tspan fill="#ffde00">#2026</tspan></text>
+  </svg>`;
+}
+
 /* ============== CARD 4: DISTRICT LEADERBOARD (1080×1080) ============== */
 function DistrictCardSVG({ constituencies, candidates, time }) {
   const tally = seatTallyFrom(constituencies, candidates);
@@ -4313,7 +4501,7 @@ function MarginCardSVG({ constituencies, candidates, time }) {
 function AdminSocialCards({ constituencies, candidates, segments, onToast }) {
   const TPL = [
     { id:'lead',     label:'CONSTITUENCY LEAD',    size:'1080 × 1350', use:'Single constituency — 3-party comparison with photo, votes & lead (DIO Poster style)' },
-    { id:'allcons',  label:'ALL CONSTITUENCY LEADS', size:'1080 × 1920 (Story)', use:'All 13 constituencies candidate lead grid (DIO multi-constituency poster)' },
+    { id:'allcons',  label:'ALL CONSTITUENCY LEADS', size:'2400 × 3000', use:'All 13 constituencies candidate lead grid (uploaded SM Template design)' },
     { id:'round',    label:'ROUND UPDATE',          size:'1080 × 1920 (Story)', use:'Quick round completion update with large lead number' },
     { id:'district', label:'DISTRICT LEADERBOARD',  size:'1080 × 1080', use:'Seat tally + vote totals for all parties' },
     { id:'margin',   label:'DISTRICT VOTE MARGIN',  size:'1080 × 1080', use:'Overall vote lead comparison across constituencies' },
@@ -4334,7 +4522,7 @@ function AdminSocialCards({ constituencies, candidates, segments, onToast }) {
     return null;
   };
 
-  const sizeMap = { lead:[1080,1350], allcons:[1080,1920], round:[1080,1920], district:[1080,1080], margin:[1080,1080] };
+  const sizeMap = { lead:[1080,1350], allcons:[2400,3000], round:[1080,1920], district:[1080,1080], margin:[1080,1080] };
 
   const downloadJpg = async () => {
     const node = previewRef.current;
@@ -4458,6 +4646,14 @@ function App() {
 
   // Bootstrap: load everything from Supabase on first render
   const [rawRoundRows, setRawRoundRows] = useState(() => []);
+  const rawRoundRowsRef = useRef([]);
+  const updateRawRoundRows = (nextRowsOrUpdater) => {
+    setRawRoundRows(prev => {
+      const next = typeof nextRowsOrUpdater === 'function' ? nextRowsOrUpdater(prev) : nextRowsOrUpdater;
+      rawRoundRowsRef.current = next || [];
+      return next || [];
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -4469,7 +4665,7 @@ function App() {
         setCandidates(db.candidates || []);
         setTicker(db.ticker || []);
         setAnnouncements(db.announcements || []);
-        if (db.rawRoundRows) setRawRoundRows(db.rawRoundRows);
+        if (db.rawRoundRows) updateRawRoundRows(db.rawRoundRows);
         if (db.settings) setSettings(db.settings);
         else supaUpsert('app_settings', settingsToDb(DEFAULT_SETTINGS));
         // Phase 2: load segments + users in background after UI is visible
@@ -4513,7 +4709,6 @@ function App() {
 
   // When rawRoundRows are patched by realtime, rebuild candidate vote totals without a DB fetch
   useEffect(() => {
-    if (!rawRoundRows.length) return;
     setCandidates(prev => {
       if (!prev.length) return prev;
       const roundByCandidate = new Map();
@@ -4545,7 +4740,7 @@ function App() {
 
     // Helper: rebuild candidates from current rawRoundRows + a patched version of one row
     const patchRoundRow = (payload) => {
-      setRawRoundRows(prev => {
+      updateRawRoundRows(prev => {
         const next = [...prev];
         const { candidate_id, round_number } = payload.new || payload.old || {};
         if (!candidate_id) return prev;
@@ -4580,23 +4775,19 @@ function App() {
       // Candidates: patch individual candidate metadata
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, (payload) => {
         debounce('candidates', async () => {
-          const [rows, imageRows] = await Promise.all([
-            loadCandidatesFromDB(),
+          const [candRows, imageRows] = await Promise.all([
+            supaLoad('candidates'),
             loadCandidateImagesFromDB(),
           ]);
-          if (rows) setCandidates(prev => hydrateCandidateImages(rows, imageRows.length ? imageRows : prev));
+          if (candRows) {
+            const rows = buildCandidatesFromRows(candRows, rawRoundRowsRef.current);
+            setCandidates(prev => hydrateCandidateImages(rows, imageRows.length ? imageRows : prev));
+          }
         }, 400);
       })
       // Round votes: patch in-memory — NO full re-fetch
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_round_votes' }, () => {
-        debounce('candidate_round_votes', async () => {
-          const [rows, roundRows] = await Promise.all([
-            loadCandidatesFromDB(),
-            supaLoad('candidate_round_votes')
-          ]);
-          if (rows) setCandidates(prev => hydrateCandidateImages(rows, prev));
-          if (roundRows) setRawRoundRows(roundRows);
-        }, 500);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_round_votes' }, (payload) => {
+        patchRoundRow(payload);
       })
       // LAC segments: moderate size, debounced re-fetch
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lac_segments' }, (payload) => {
@@ -4666,13 +4857,13 @@ function App() {
       if (cancelled) return;
       if (consRows) setConstituencies(consRows.map(dbToConstituency));
       if (candRows) setCandidates(prev => hydrateCandidateImages(buildCandidatesFromRows(candRows, roundRows || []), prev));
-      if (roundRows) setRawRoundRows(roundRows);
+      if (roundRows) updateRawRoundRows(roundRows);
       if (tickerRows) setTicker(tickerRows.map(r => r.message));
       if (announceRows) setAnnouncements(announceRows.map(r => ({ id: r.id, kind: r.kind || 1, msg: r.message, tag: r.tag || 'BREAKING' })));
       if (settingsRows && settingsRows[0]) setSettings(dbToSettings(settingsRows[0]));
     };
     refreshViewer();
-    const timer = setInterval(refreshViewer, 3000);
+    const timer = setInterval(refreshViewer, 30000);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -4765,7 +4956,7 @@ function App() {
       announcements=${announcements} setAnnouncements=${setAnnouncements}
       users=${users} setUsers=${setUsers}
       settings=${settings} setSettings=${setSettings}
-      setRawRoundRows=${setRawRoundRows}
+      setRawRoundRows=${updateRawRoundRows}
     />`}
 
     ${updateOverlay && html`<${UpdateOverlay}
