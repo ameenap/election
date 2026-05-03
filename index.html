@@ -161,12 +161,12 @@ body::before{content:'';position:fixed;inset:0;background:
 
 /* === LEADING CANDIDATES === */
 .lead-row{flex-shrink:0}
-.lead-marquee{height:218px;overflow:hidden;position:relative}
+.lead-marquee{height:238px;overflow:hidden;position:relative}
 .lead-track{height:100%;display:flex;gap:10px;width:max-content;animation:leadScroll 76s linear infinite;will-change:transform}
 .lead-row:hover .lead-track{animation-play-state:paused}
 .lead-track.paused{animation-play-state:paused}
 @keyframes leadScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.lead-card{width:216px;height:210px;position:relative;background:linear-gradient(160deg,rgba(16,24,58,.97),rgba(9,15,42,.99));border:1px solid var(--line2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 216px}
+.lead-card{width:256px;height:230px;position:relative;background:linear-gradient(160deg,rgba(16,24,58,.97),rgba(9,15,42,.99));border:1px solid var(--line2);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;flex:0 0 256px}
 .lead-card.udf{border-color:rgba(30,93,255,.45);box-shadow:0 0 22px rgba(30,93,255,.22),inset 0 0 50px rgba(30,93,255,.04)}
 .lead-card.ldf{border-color:rgba(220,31,46,.45);box-shadow:0 0 22px rgba(220,31,46,.22),inset 0 0 50px rgba(220,31,46,.04)}
 .lead-card.nda{border-color:rgba(255,122,31,.45);box-shadow:0 0 22px rgba(255,122,31,.22),inset 0 0 50px rgba(255,122,31,.04)}
@@ -187,13 +187,13 @@ body::before{content:'';position:fixed;inset:0;background:
 .lead-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .lead-name{font-family:'Noto Sans Malayalam',sans-serif;font-weight:900;font-size:13.5px;color:#fff;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,.5);margin-bottom:1px}
 .lead-pty{font-family:'Inter',sans-serif;font-weight:800;font-size:9px;color:rgba(255,255,255,.55);letter-spacing:.9px;margin-bottom:6px}
-.lead-metrics{display:flex;gap:5px}
-.lead-vote-box{flex:1;border-radius:7px;padding:5px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)}
-.lead-margin-box{flex:1;border-radius:7px;padding:5px 7px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25)}
+.lead-metrics{display:flex;flex-direction:column;gap:4px}
+.lead-vote-box{flex:1;border-radius:7px;padding:4px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1)}
+.lead-margin-box{flex:1;border-radius:7px;padding:4px 7px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25)}
 .lead-metric-l{font-family:'Inter',sans-serif;font-weight:700;font-size:7px;color:rgba(255,255,255,.4);letter-spacing:.7px;text-transform:uppercase;line-height:1;margin-bottom:3px}
-.lead-votes{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:14px;line-height:1}
+.lead-votes{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:14px;line-height:1;white-space:nowrap;letter-spacing:-.3px}
 .lead-votes.udf{color:#60a5fa}.lead-votes.ldf{color:#f87171}.lead-votes.nda{color:#fb923c}.lead-votes.oth{color:#a78bfa}
-.lead-mar{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:12px;color:#22c55e;white-space:nowrap;line-height:1}
+.lead-mar{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:12px;color:#22c55e;white-space:nowrap;line-height:1;letter-spacing:-.3px}
 .lead-runner{display:flex;align-items:center;gap:6px;padding:0 10px;height:28px;flex-shrink:0;overflow:hidden;border-top:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.22)}
 .lead-runner-rank{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:8px;color:rgba(255,255,255,.28);flex-shrink:0;letter-spacing:.5px}
 .lead-runner-name{font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:9.5px;color:rgba(255,255,255,.58);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -424,17 +424,16 @@ body::before{content:'';position:fixed;inset:0;background:
 /* === AnalyticsFlash poll card === */
 .afl-anim{animation:aflIn .55s cubic-bezier(.16,1,.3,1)}
 .afl-poll{flex:1;display:flex;flex-direction:column;gap:5px;padding:6px}
-.afl-poll-head{font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:10px;color:rgba(255,255,255,.6);text-align:center;letter-spacing:.6px;text-transform:uppercase;line-height:1.3}
+.afl-poll-head{font-family:'Inter',sans-serif;font-weight:800;font-size:9.5px;color:rgba(255,255,255,.5);text-align:center;letter-spacing:1.2px;text-transform:uppercase;line-height:1.3}
 .afl-poll-pct{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:36px;color:#22c55e;text-align:center;line-height:1;letter-spacing:-1px}
 .afl-poll-bar{height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.2);width:100%}
 .afl-poll-bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1);box-shadow:0 0 8px rgba(34,197,94,.4)}
-.afl-poll-row{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;justify-content:space-between;padding:8px 10px;font-family:'Anek Malayalam',sans-serif;font-weight:600;font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.025);border-radius:7px}
+.afl-poll-row{flex:1;min-height:0;width:100%;display:flex;flex-direction:column;justify-content:space-between;padding:9px 11px;font-family:'Anek Malayalam',sans-serif;font-weight:600;font-size:11px;color:rgba(255,255,255,.7);background:rgba(255,255,255,.035);border-radius:8px;border:1px solid rgba(255,255,255,.06)}
 .afl-poll-row b{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11.5px;color:#fff}
 .afl-cons-line{display:flex;align-items:center;gap:6px;min-width:0}
 .afl-cons-line b{font-family:'Anek Malayalam',sans-serif;font-size:11.5px;color:#fff;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;overflow-wrap:anywhere}
-.afl-party-tag{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:2px 7px;border-radius:4px;background:var(--pc);color:#fff;font-family:'Inter',sans-serif;font-weight:900;font-size:8.5px;letter-spacing:1px;line-height:1;box-shadow:0 0 10px var(--pc);flex-shrink:0}
-.afl-party-tag::after{content:' LEAD';font-size:7px;letter-spacing:.8px;opacity:.78;margin-left:3px}
-.afl-status-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 6px;border-radius:4px;border:1px solid var(--sc);background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc);font-family:'Inter',sans-serif;font-weight:900;font-size:7px;letter-spacing:.7px;line-height:1;white-space:nowrap;flex-shrink:0}
+.afl-party-tag{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:2px 7px;border-radius:4px;background:var(--pc);color:#fff;font-family:'Inter',sans-serif;font-weight:900;font-size:8.5px;letter-spacing:1.2px;line-height:1;box-shadow:0 0 10px var(--pc);flex-shrink:0}
+.afl-status-tag{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:4px;border:1px solid var(--sc);background:color-mix(in srgb,var(--sc) 15%,transparent);color:var(--sc);font-family:'Inter',sans-serif;font-weight:900;font-size:7.5px;letter-spacing:.9px;line-height:1;white-space:nowrap;flex-shrink:0}
 
 /* === TICKER === */
 .tickr{flex-shrink:0;display:flex;align-items:center;gap:0;padding:0;background:linear-gradient(90deg,rgba(220,31,46,.32),rgba(7,11,42,.85));border-top:2px solid rgba(220,31,46,.6);height:38px;overflow:hidden}
@@ -939,10 +938,10 @@ const PARTIES = {
 /* Counting Status constants — used across admin + dashboard */
 const MAX_ROUNDS = 30;
 const COUNTING_STATUSES = [
-  { val:'not_started', ml:'എണ്ണൽ ആരംഭിച്ചിട്ടില്ല', en:'Counting Not Started', color:'#94a3b8' },
-  { val:'live',        ml:'തത്സമയ എണ്ണൽ',           en:'Live Counting',        color:'#22c55e' },
-  { val:'completed',   ml:'എണ്ണൽ പൂർത്തിയായി',       en:'Counting Completed',   color:'#fbbf24' },
-  { val:'declared',    ml:'ഫലം പ്രഖ്യാപിച്ചു',       en:'Results Declared',     color:'#1e5dff' },
+  { val:'not_started', ml:'എണ്ണൽ ആരംഭിച്ചിട്ടില്ല', en:'Counting Not Started', short:'PENDING',  color:'#94a3b8' },
+  { val:'live',        ml:'തത്സമയ എണ്ണൽ',           en:'Live Counting',        short:'LIVE',     color:'#22c55e' },
+  { val:'completed',   ml:'എണ്ണൽ പൂർത്തിയായി',       en:'Counting Completed',   short:'DONE',     color:'#fbbf24' },
+  { val:'declared',    ml:'ഫലം പ്രഖ്യാപിച്ചു',       en:'Results Declared',     short:'DECLARED', color:'#1e5dff' },
 ];
 const ML_MONTHS = ['ജനുവരി','ഫെബ്രുവരി','മാർച്ച്','ഏപ്രിൽ','മെയ്','ജൂൺ','ജൂലൈ','ഓഗസ്റ്റ്','സെപ്റ്റംബർ','ഒക്ടോബർ','നവംബർ','ഡിസംബർ'];
 
@@ -1525,12 +1524,12 @@ function AnalyticsFlash({ totals, totalLead, leadParty, segments, constituencies
             const st = COUNTING_STATUSES.find(s=>s.val===(r.cons.countingStatus||'live'))||COUNTING_STATUSES[1];
             return html`<div class="afl-poll-row" key=${r.cons.id} style=${`border-left:3px solid ${p.color}`}>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-                <span class="afl-cons-line"><b>${r.cons.name_ml}</b><span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span><span class="afl-status-tag" style=${`--sc:${st.color}`}>${st.en.toUpperCase()}</span></span>
+                <span class="afl-cons-line"><b>${r.cons.name_ml}</b><span class="afl-party-tag" style=${`--pc:${p.color}`}>${p.en}</span><span class="afl-status-tag" style=${`--sc:${st.color}`}>${st.short||st.en}</span></span>
                 <b style=${`color:${p.color};font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;${st.val==='live'&&!done?'animation:blink 1s ease infinite':''}`}>+${fmtIN(r.margin)}</b>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <small style=${`font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:9.5px;color:${st.color};letter-spacing:.3px`}>${r.leader?.name_ml || ''} · ${st.ml || st.en}</small>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.45)">R${rndDone}/${rndTotal}</span>
+                <small style=${`font-family:'Anek Malayalam',sans-serif;font-weight:700;font-size:10px;color:rgba(255,255,255,.8);letter-spacing:.2px`}>${r.leader?.name_ml || ''}</small>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:rgba(255,255,255,.55);font-weight:600">R${rndDone}/${rndTotal}</span>
               </div>
               <div style="height:3px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden">
                 <div style=${`height:100%;width:${rndPct}%;background:${st.val==='live'?p.color:st.color};opacity:.8;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)`}></div>
