@@ -736,11 +736,11 @@ async function supaSaveRoundVotes(consId, rows) {
     if (r.error) throw r.error;
   }
 }
-function withDbTimeout(promise, label, ms=8000) {
+function withDbTimeout(promise, label, ms=20000) {
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => {
-      console.warn('DB load timeout', label);
+      console.info('DB load timeout', label);
       resolve({ data:null, error:new Error('timeout') });
     }, ms))
   ]);
@@ -748,7 +748,7 @@ function withDbTimeout(promise, label, ms=8000) {
 
 const TABLE_SELECT = {
   constituencies: 'id,name_ml,name_en,completed_rounds,total_rounds,counting_status',
-  candidates: 'id,cons_id,name_ml,party,photo_url,symbol_url,photo_seed,postal_votes',
+  candidates: 'id,cons_id,name_ml,party,photo_seed,postal_votes',
   candidate_round_votes: 'candidate_id,cons_id,round_number,votes',
   lac_segments: 'id,name_ml,name_en,current_round,udf_current,ldf_current,nda_current,oth_current,udf_total,ldf_total,nda_total,oth_total,rounds_json',
   ticker_messages: 'id,message,sort_order',
@@ -756,6 +756,19 @@ const TABLE_SELECT = {
   app_users: 'id,name,email,password_plain,role,active',
   app_settings: 'id,show_map,show_lac_labels,auto_rotate,flash_interval,animations,font,ticker_speed,theme,total_voters_polled,voters_polled_by_cons'
 };
+
+const DATA_IMAGE_RE = /^data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
+const MAX_INLINE_IMAGE_URL = 3000000;
+function safeImageUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (url.startsWith('data:image/')) {
+    return url.length <= MAX_INLINE_IMAGE_URL && DATA_IMAGE_RE.test(url) ? url : '';
+  }
+  if (/^(https?:|blob:)/i.test(url)) return url;
+  if (/^(?:\.{0,2}\/|[a-z0-9_-]+\/)[^\s"'<>]+$/i.test(url)) return url;
+  return '';
+}
 
 async function supaLoad(table, columns=TABLE_SELECT[table] || '*') {
   if (!supa) return null;
@@ -818,8 +831,8 @@ function dbToCandidate(row, roundRows) {
     votes: totalVotes,
     postalVotes,
     photoSeed: row.photo_seed || '',
-    photoUrl: row.photo_url || '',
-    symbolUrl: row.symbol_url || '',
+    photoUrl: safeImageUrl(row.photo_url),
+    symbolUrl: safeImageUrl(row.symbol_url),
     rounds,
   };
 }
@@ -946,6 +959,25 @@ function buildCandidatesFromRows(candRows, roundRows) {
   return (candRows || []).map(r => dbToCandidate(r, roundByCandidate));
 }
 
+function hydrateCandidateImages(candidates, imageRows) {
+  const images = new Map();
+  (imageRows || []).forEach(r => {
+    images.set(r.id, {
+      photoUrl: safeImageUrl(r.photo_url || r.photoUrl),
+      symbolUrl: safeImageUrl(r.symbol_url || r.symbolUrl)
+    });
+  });
+  return (candidates || []).map(c => {
+    const img = images.get(c.id);
+    return img ? { ...c, ...img } : c;
+  });
+}
+
+async function loadCandidateImagesFromDB() {
+  const rows = await supaLoad('candidates', 'id,photo_url,symbol_url');
+  return rows || [];
+}
+
 async function loadCandidatesFromDB() {
   const [candRows, roundRows] = await Promise.all([
     supaLoad('candidates'),
@@ -981,6 +1013,7 @@ async function loadAllFromDB() {
   const phase2 = Promise.all([
     supaLoad('lac_segments'),
     supaLoad('app_users'),
+    loadCandidateImagesFromDB(),
   ]);
 
   const db = { constituencies, candidates, segments: [], ticker, announcements, users: [], settings, rawRoundRows, _phase2: phase2 };
@@ -1203,6 +1236,7 @@ function ECILogo({ size=40 }) {
    PARTY SYMBOL (Hand / Hammer & Sickle / Lotus)
    ==================================================================== */
 function PartySymbol({ party, size=24, symbolUrl='' }) {
+  symbolUrl = safeImageUrl(symbolUrl);
   if (symbolUrl) {
     return html`<img src=${symbolUrl} width=${size} height=${size} alt="" style=${`display:block;width:${size}px;height:${size}px;object-fit:contain;border-radius:50%;background:#fff`}/>`;
   }
@@ -1242,6 +1276,7 @@ function PartySymbol({ party, size=24, symbolUrl='' }) {
    ==================================================================== */
 function Avatar({ size=80, party='UDF', seed='x', ring=true, photoUrl='' }) {
   const p = PARTIES[party] || PARTIES.OTH;
+  photoUrl = safeImageUrl(photoUrl);
   /* If photoUrl provided, render as image */
   if (photoUrl) {
     return html`<div style=${`width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;border:${ring?`2px solid ${p.color}`:`1.5px solid #fff`};background:#0a1340;flex-shrink:0`}>
@@ -2845,8 +2880,8 @@ function CandidateModal({ candidate, constituencies, onSave, onClose }) {
           <div class="cand-upload-cell">
             <label>Candidate Photo</label>
             <div class="cand-upload-prev">
-              ${c.photoUrl
-                ? html`<img src=${c.photoUrl} alt="photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`
+              ${safeImageUrl(c.photoUrl)
+                ? html`<img src=${safeImageUrl(c.photoUrl)} alt="photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`
                 : html`<${Avatar} size=${100} party=${c.party} seed=${c.photoSeed||c.id||'x'} ring=${false}/>`
               }
             </div>
@@ -2860,8 +2895,8 @@ function CandidateModal({ candidate, constituencies, onSave, onClose }) {
           <div class="cand-upload-cell">
             <label>Party Symbol Image (optional)</label>
             <div class="cand-upload-prev sm">
-              ${c.symbolUrl
-                ? html`<img src=${c.symbolUrl} alt="symbol" style="width:100%;height:100%;object-fit:contain;background:#fff;border-radius:50%"/>`
+              ${safeImageUrl(c.symbolUrl)
+                ? html`<img src=${safeImageUrl(c.symbolUrl)} alt="symbol" style="width:100%;height:100%;object-fit:contain;background:#fff;border-radius:50%"/>`
                 : html`<div style="display:flex;align-items:center;justify-content:center;background:#fff;width:100%;height:100%;border-radius:50%"><${PartySymbol} party=${c.party} size=${48}/></div>`
               }
             </div>
@@ -4414,14 +4449,16 @@ function App() {
         else supaUpsert('app_settings', settingsToDb(DEFAULT_SETTINGS));
         // Phase 2: load segments + users in background after UI is visible
         if (db._phase2) {
-          db._phase2.then(([segRows, userRows]) => {
+          db._phase2.then(([segRows, userRows, imageRows]) => {
             if (cancelled) return;
             if (segRows) setSegments(segRows.map(dbToSegment));
             if (userRows) setUsers(userRows.map(dbToUser));
+            const imageCandidates = hydrateCandidateImages(db.candidates, imageRows);
+            setCandidates(imageCandidates);
             // Save full cache only after phase 2 completes
             const fullDb = {
               constituencies: db.constituencies,
-              candidates: db.candidates,
+              candidates: imageCandidates,
               segments: (segRows||[]).map(dbToSegment),
               ticker: db.ticker,
               announcements: db.announcements,
@@ -4518,8 +4555,11 @@ function App() {
       // Candidates: patch individual candidate metadata
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, (payload) => {
         debounce('candidates', async () => {
-          const rows = await loadCandidatesFromDB();
-          if (rows) setCandidates(rows);
+          const [rows, imageRows] = await Promise.all([
+            loadCandidatesFromDB(),
+            loadCandidateImagesFromDB(),
+          ]);
+          if (rows) setCandidates(prev => hydrateCandidateImages(rows, imageRows.length ? imageRows : prev));
         }, 400);
       })
       // Round votes: patch in-memory — NO full re-fetch
@@ -4529,7 +4569,7 @@ function App() {
             loadCandidatesFromDB(),
             supaLoad('candidate_round_votes')
           ]);
-          if (rows) setCandidates(rows);
+          if (rows) setCandidates(prev => hydrateCandidateImages(rows, prev));
           if (roundRows) setRawRoundRows(roundRows);
         }, 500);
       })
@@ -4600,7 +4640,7 @@ function App() {
       ]);
       if (cancelled) return;
       if (consRows) setConstituencies(consRows.map(dbToConstituency));
-      if (candRows) setCandidates(buildCandidatesFromRows(candRows, roundRows || []));
+      if (candRows) setCandidates(prev => hydrateCandidateImages(buildCandidatesFromRows(candRows, roundRows || []), prev));
       if (roundRows) setRawRoundRows(roundRows);
       if (tickerRows) setTicker(tickerRows.map(r => r.message));
       if (announceRows) setAnnouncements(announceRows.map(r => ({ id: r.id, kind: r.kind || 1, msg: r.message, tag: r.tag || 'BREAKING' })));
