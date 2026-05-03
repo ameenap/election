@@ -1022,8 +1022,8 @@ const ML_MONTHS = ['ജനുവരി','ഫെബ്രുവരി','മാർ
 
 const ROLE_LABEL = { super_admin:'SUPER ADMIN', editor:'EDITOR', viewer:'VIEWER' };
 const ROLE_PAGES = {
-  super_admin: ['dashboard','votes','lac','candidates','announce','ticker','social','settings','users'],
-  editor:      ['dashboard','votes','lac','candidates','announce','ticker','social'],
+  super_admin: ['dashboard','votes','lac','candidates','announce','whatsapp','ticker','social','settings','users'],
+  editor:      ['dashboard','votes','lac','candidates','announce','whatsapp','ticker','social','settings','users'],
   viewer:      ['dashboard']
 };
 /* ====================================================================
@@ -1099,6 +1099,7 @@ const I = {
   edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
   trsh: 'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
   plus: 'M12 5v14M5 12h14',
+  copy: 'M8 8h11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zM16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h1',
   x: 'M18 6L6 18M6 6l12 12',
   chev_l: 'M15 18l-6-6 6-6',
   chev_r: 'M9 18l6-6-6-6',
@@ -2061,6 +2062,7 @@ const ADM_PAGES = [
   { id:'lac',       icon:I.lac,  ml:'LAC ബ്രേക്ക്ഡൗൺ', en:'LAC Breakdown' },
   { id:'candidates',icon:I.cand, ml:'സ്ഥാനാർത്ഥികൾ', en:'Candidates' },
   { id:'announce',  icon:I.meg,  ml:'അറിയിപ്പുകൾ', en:'Announcement' },
+  { id:'whatsapp',  icon:I.copy, ml:'WhatsApp അപ്ഡേറ്റ്', en:'WhatsApp Update' },
   { id:'ticker',    icon:I.scrl, ml:'ടിക്കർ സന്ദേശം', en:'Ticker Message' },
   { id:'social',    icon:I.share,ml:'സോഷ്യൽ കാർഡുകൾ', en:'Social Cards' },
   { id:'settings',  icon:I.set,  ml:'സജ്ജീകരണങ്ങൾ', en:'Settings' },
@@ -2139,6 +2141,7 @@ function AdminPanel(props) {
         ${page==='lac' && html`<${AdminLACBreakdown} segments=${segments} setSegments=${setSegments} onToast=${onToast}/>`}
         ${page==='candidates' && html`<${AdminCandidates} candidates=${candidates} setCandidates=${setCandidates} constituencies=${constituencies} onToast=${onToast}/>`}
         ${page==='announce' && html`<${AdminAnnouncement} announcements=${announcements} setAnnouncements=${setAnnouncements} onToast=${onToast}/>`}
+        ${page==='whatsapp' && html`<${AdminWhatsAppUpdate} constituencies=${constituencies} candidates=${candidates} onToast=${onToast}/>`}
         ${page==='ticker' && html`<${AdminTicker} ticker=${ticker} setTicker=${setTicker} onToast=${onToast}/>`}
         ${page==='social' && html`<${AdminSocialCards} constituencies=${constituencies} candidates=${candidates} segments=${segments} onToast=${onToast}/>`}
         ${page==='settings' && html`<${AdminSettings} settings=${settings} setSettings=${setSettings} constituencies=${constituencies} setConstituencies=${setConstituencies} candidates=${candidates} onToast=${onToast}/>`}
@@ -2236,6 +2239,7 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
   const cons = useMemo(() => constituencies.find(c => c.id === consId) || constituencies[0], [consId, constituencies]);
   const totalRounds = cons?.totalRounds || 15;
   const consCands = useMemo(() => candidates.filter(c => c.consId === consId), [candidates, consId]);
+  const [candidateEditor, setCandidateEditor] = useState(null);
 
   /* draft[roundKey][candidateId] = vote string; roundKey='postal' for postal */
   const [draft, setDraft] = useState({});
@@ -2261,6 +2265,46 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
   const setVal = (roundKey, cid, v) => {
     const cleaned = v.replace(/[^0-9]/g, '');
     setDraft(prev => ({ ...prev, [roundKey]: { ...(prev[roundKey]||{}), [cid]: cleaned } }));
+  };
+
+  const addCandidate = () => {
+    setCandidateEditor({ new:true, name:'', party:'OTH', consId, photoSeed:'c'+Date.now(), photoUrl:'', symbolUrl:'' });
+  };
+  const saveCandidate = (c) => {
+    if (!c.name || !c.consId || !c.party) { onToast('Candidate name, constituency and party are required', 'err'); return; }
+    const id = 'c_' + Date.now();
+    const newCand = { id, name:c.name, name_ml:c.name, party:c.party, consId:c.consId, photoSeed:c.photoSeed||id, photoUrl:c.photoUrl||'', symbolUrl:c.symbolUrl||'', votes:0, postalVotes:0, rounds:{} };
+    setCandidates(prev => [...prev, newCand]);
+    supaUpsert('candidates', candidateToDb(newCand));
+    setCandidateEditor(null);
+    onToast('Candidate added');
+  };
+  const addOtherCount = async () => {
+    const id = `oth_${consId}`;
+    if (candidates.some(c => c.id === id || (c.consId === consId && c.party === 'OTH' && /^other candidates$/i.test(c.name || c.name_ml || '')))) {
+      onToast('Other Candidates count already exists for this constituency', 'err');
+      return;
+    }
+    const newCand = { id, name:'Other Candidates', name_ml:'Other Candidates', party:'OTH', consId, photoSeed:id, photoUrl:'', symbolUrl:'', votes:0, postalVotes:0, rounds:{} };
+    setCandidates(prev => [...prev, newCand]);
+    setDraft(prev => {
+      const next = { ...prev };
+      [...Array.from({length: MAX_ROUNDS}, (_,i) => String(i+1)), 'postal'].forEach(rk => {
+        next[rk] = { ...(next[rk] || {}), [id]: '' };
+      });
+      return next;
+    });
+    try {
+      if (supa) {
+        const r = await supa.from('candidates').upsert(candidateToDb(newCand), { onConflict:'id' });
+        if (r.error) throw r.error;
+      }
+      onToast('Other Candidates count added');
+    } catch(e) {
+      console.warn('other count add failed', e);
+      setCandidates(prev => prev.filter(x => x.id !== id));
+      onToast(`Other count save failed: ${e.message || e}`, 'err');
+    }
   };
 
   /* Compute cumulative after each row for a candidate */
@@ -2425,6 +2469,12 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
           ${COUNTING_STATUSES.map(s => html`<option key=${s.val} value=${s.val} style="color:${s.color}">${s.en} · ${s.ml}</option>`)}
         </select>
       </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="adm-btn primary" onClick=${addCandidate}><${Icon} d=${I.plus} size=${13}/> Add Candidate</button>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="adm-btn ghost" onClick=${addOtherCount}><${Icon} d=${I.plus} size=${13}/> Other Count</button>
+      </div>
       <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
         <button class="adm-btn ghost" onClick=${() => save(false)}><${Icon} d=${I.save} size=${13}/> Save Draft</button>
         <button class="adm-btn green" onClick=${() => save(true)}><${Icon} d=${I.share} size=${13}/> Save & Publish</button>
@@ -2504,6 +2554,7 @@ function AdminVoteUpdate({ constituencies, setConstituencies, candidates, setCan
         <span>Postal ballot entered in last row. Cumulative column shows running total across parties.</span>
       </div>
     </div>
+    ${candidateEditor && html`<${CandidateModal} candidate=${candidateEditor} constituencies=${constituencies} onSave=${saveCandidate} onClose=${() => setCandidateEditor(null)}/>`}
   </div>`;
 }
 
@@ -2958,39 +3009,152 @@ function AdminAnnouncement({ announcements, setAnnouncements, onToast }) {
   </div>`;
 }
 
+/* ============== WHATSAPP UPDATE ============== */
+function AdminWhatsAppUpdate({ constituencies, candidates, onToast }) {
+  const [consId, setConsId] = useState(constituencies[0]?.id || '');
+  const textRef = useRef(null);
+  const cons = useMemo(() => constituencies.find(c => c.id === consId) || constituencies[0], [constituencies, consId]);
+
+  useEffect(() => {
+    if (!constituencies.some(c => c.id === consId)) setConsId(constituencies[0]?.id || '');
+  }, [constituencies.length]);
+
+  const generated = useMemo(() => {
+    if (!cons) return '';
+    const rows = candidates
+      .filter(c => c.consId === cons.id)
+      .map(c => ({ ...c, totalVotes: parseInt(c.votes, 10) || 0 }))
+      .sort((a,b) => b.totalVotes - a.totalVotes);
+    const top = rows[0];
+    const second = rows[1];
+    const lead = top ? Math.max(0, (top.totalVotes || 0) - (second?.totalVotes || 0)) : 0;
+    const updated = new Date().toLocaleString('en-IN', {
+      day:'2-digit', month:'2-digit', year:'numeric',
+      hour:'2-digit', minute:'2-digit', hour12:true
+    });
+    const lines = [
+      'കേരള നിയമസഭ തിരഞ്ഞെടുപ്പ് ഫലം 2026',
+      '',
+      `Updated: ${updated}`,
+      '',
+      `മണ്ഡലം: ${cons.name_ml || cons.name || cons.name_en || ''}`,
+      `റൗണ്ട് ${pad2N(cons.completedRounds || cons.round || 0)} / ${pad2N(cons.totalRounds || cons.total || 15)}`,
+      ''
+    ];
+    rows.forEach((c, i) => {
+      const candidateName = c.name_ml || c.name || '';
+      const party = c.party || '';
+      const suffix = i === 0 ? `, ഭൂരിപക്ഷം ${fmtIN(lead)}` : '';
+      lines.push(`${i + 1}. ${party} - ${candidateName} - ${fmtIN(c.totalVotes)}${suffix}`);
+    });
+    if (!rows.length) lines.push('സ്ഥാനാർഥി വിവരങ്ങൾ ലഭ്യമല്ല');
+    lines.push('', 'ജില്ലാ ഇൻഫർമേഷൻ ഓഫീസ്, കോഴിക്കോട്');
+    return lines.join('\n');
+  }, [cons, candidates]);
+
+  const copyText = async () => {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(generated);
+      else {
+        textRef.current?.select();
+        document.execCommand('copy');
+      }
+      onToast('WhatsApp update copied');
+    } catch(e) {
+      console.warn('copy failed', e);
+      textRef.current?.select();
+      onToast('Copy failed. Text selected manually.', 'err');
+    }
+  };
+
+  const sortedPreview = cons ? candidates
+    .filter(c => c.consId === cons.id)
+    .map(c => ({ ...c, totalVotes: parseInt(c.votes, 10) || 0 }))
+    .sort((a,b) => b.totalVotes - a.totalVotes) : [];
+
+  return html`<div>
+    <div class="adm-card">
+      <h3 class="adm-card-t"><${Icon} d=${I.copy} size=${14} stroke="#fbbf24"/> Copy Paste WhatsApp Updation</h3>
+      <div class="adm-bar" style="margin-bottom:12px;align-items:flex-end">
+        <div class="adm-fld" style="min-width:280px;flex:1">
+          <label>Constituency</label>
+          <select class="adm-inp" value=${cons?.id || ''} onChange=${e => setConsId(e.target.value)}>
+            ${constituencies.map(c => html`<option key=${c.id} value=${c.id}>${c.name_ml || c.name_en} · ${c.name_en || ''}</option>`)}
+          </select>
+        </div>
+        <button class="adm-btn primary" onClick=${copyText}><${Icon} d=${I.copy} size=${13}/> Copy for WhatsApp</button>
+      </div>
+      <textarea ref=${textRef} class="adm-inp" rows="14" readonly value=${generated}
+        style="width:100%;font-family:'Anek Malayalam','Noto Serif Malayalam',sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap"></textarea>
+    </div>
+
+    <div class="adm-card">
+      <h3 class="adm-card-t">Sorted Vote List · ${sortedPreview.length}</h3>
+      <table class="adm-tab">
+        <thead><tr><th style="width:40px">#</th><th>Candidate</th><th style="width:90px">Party</th><th class="num">Total Votes</th><th class="num">Lead</th></tr></thead>
+        <tbody>
+          ${sortedPreview.map((c,i) => {
+            const lead = i === 0 ? Math.max(0, (c.totalVotes || 0) - (sortedPreview[1]?.totalVotes || 0)) : 0;
+            return html`<tr key=${c.id}>
+              <td>${pad2N(i+1)}</td>
+              <td>${c.name_ml || c.name}</td>
+              <td><span class="pty-tag ${(c.party||'').toLowerCase()}">${c.party}</span></td>
+              <td class="num">${fmtIN(c.totalVotes)}</td>
+              <td class="num" style="color:${i===0?'#22c55e':'rgba(255,255,255,.35)'}">${i===0 ? `+${fmtIN(lead)}` : '-'}</td>
+            </tr>`;
+          })}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 /* ============== TICKER ============== */
 function AdminTicker({ ticker, setTicker, onToast }) {
   const [draft, setDraft] = useState('');
 
-  const syncTicker = (items) => {
-    if (!supa) return;
-    // Replace all ticker rows: delete old, insert new
-    supa.from('ticker_messages').delete().neq('id', 0).then(() => {
-      const rows = items.map((message, i) => ({ message, sort_order: i }));
-      if (rows.length) supaUpsertBatch('ticker_messages', rows, 'sort_order');
-    });
+  const syncTicker = async (items) => {
+    if (!supa) throw new Error('Supabase is not initialized');
+    const del = await supa.from('ticker_messages').delete().neq('id', 0);
+    if (del.error) throw del.error;
+    const rows = items.map((message, i) => ({ message, sort_order: i }));
+    if (rows.length) {
+      const ins = await supa.from('ticker_messages').insert(rows);
+      if (ins.error) throw ins.error;
+    }
   };
-  const add = () => {
+  const saveTicker = async (next, previous=ticker) => {
+    setTicker(next);
+    try {
+      await syncTicker(next);
+      return true;
+    } catch(e) {
+      console.warn('syncTicker', e);
+      setTicker(previous);
+      onToast('Ticker save failed. Check Supabase RLS/policies.');
+      return false;
+    }
+  };
+  const add = async () => {
     if (!draft.trim()) return;
     const next = [...ticker, draft.trim()];
-    setTicker(next);
-    syncTicker(next);
+    const ok = await saveTicker(next);
+    if (!ok) return;
     setDraft('');
     onToast('ടിക്കർ ചേർത്തു');
   };
-  const remove = (idx) => {
+  const remove = async (idx) => {
     const next = ticker.filter((_,i) => i !== idx);
-    setTicker(next);
-    syncTicker(next);
+    const ok = await saveTicker(next);
+    if (!ok) return;
     onToast('നീക്കം ചെയ്തു');
   };
-  const move = (idx, dir) => {
+  const move = async (idx, dir) => {
     const next = [...ticker];
     const ni = idx + dir;
     if (ni < 0 || ni >= next.length) return;
     [next[idx], next[ni]] = [next[ni], next[idx]];
-    setTicker(next);
-    syncTicker(next);
+    await saveTicker(next);
   };
 
   return html`<div>
@@ -4352,8 +4516,15 @@ function App() {
         }, 400);
       })
       // Round votes: patch in-memory — NO full re-fetch
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_round_votes' }, (payload) => {
-        patchRoundRow(payload);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_round_votes' }, () => {
+        debounce('candidate_round_votes', async () => {
+          const [rows, roundRows] = await Promise.all([
+            loadCandidatesFromDB(),
+            supaLoad('candidate_round_votes')
+          ]);
+          if (rows) setCandidates(rows);
+          if (roundRows) setRawRoundRows(roundRows);
+        }, 500);
       })
       // LAC segments: moderate size, debounced re-fetch
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lac_segments' }, (payload) => {
@@ -4405,6 +4576,36 @@ function App() {
       supa.removeChannel(ch);
     };
   }, []);
+
+  // Viewer screens are often shown on LED walls. Keep them live even if
+  // Supabase realtime is delayed or not enabled for a table.
+  useEffect(() => {
+    if (!supa || user?.role !== 'viewer') return;
+    let cancelled = false;
+    const refreshViewer = async () => {
+      const [consRows, candRows, roundRows, tickerRows, announceRows, settingsRows] = await Promise.all([
+        supaLoad('constituencies'),
+        supaLoad('candidates'),
+        supaLoad('candidate_round_votes'),
+        supaLoadSorted('ticker_messages', 'sort_order', true),
+        supaLoadSorted('announcements', 'sort_order', true),
+        supaLoad('app_settings'),
+      ]);
+      if (cancelled) return;
+      if (consRows) setConstituencies(consRows.map(dbToConstituency));
+      if (candRows) setCandidates(buildCandidatesFromRows(candRows, roundRows || []));
+      if (roundRows) setRawRoundRows(roundRows);
+      if (tickerRows) setTicker(tickerRows.map(r => r.message));
+      if (announceRows) setAnnouncements(announceRows.map(r => ({ id: r.id, kind: r.kind || 1, msg: r.message, tag: r.tag || 'BREAKING' })));
+      if (settingsRows && settingsRows[0]) setSettings(dbToSettings(settingsRows[0]));
+    };
+    refreshViewer();
+    const timer = setInterval(refreshViewer, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [user?.role]);
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), cachedDb ? 700 : 1700);
