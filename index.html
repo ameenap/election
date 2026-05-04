@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#03051a">
-<meta name="supa-url" content="https://dkkktqhstzqodorueclv.supabase.co">
-<meta name="supa-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRra2t0cWhzdHpxb2RvcnVlY2x2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NDQ5MzMsImV4cCI6MjA5MzIyMDkzM30.Qo1HuhbPudTlXadoqvVWCAyKsicUlF8BmeBxbiTmgNk">
+<meta name="supa-url" content="https://oksqsfrismgloxewagij.supabase.co">
+<meta name="supa-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rc3FzZnJpc21nbG94ZXdhZ2lqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NDE2NTgsImV4cCI6MjA5MzQxNzY1OH0.KpbJMKEJOHuTY1n8aWweWEmxALvbp3XcPavYwBQddco">
 <title>കേരള നിയമസഭാ തിരഞ്ഞെടുപ്പ് 2026 ഫലം · DIO Kozhikode</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,8 +170,8 @@ body::before{content:'';position:fixed;inset:0;background:
 .lead-card.udf{border-color:rgba(30,93,255,.45);box-shadow:0 0 22px rgba(30,93,255,.22),inset 0 0 50px rgba(30,93,255,.04)}
 .lead-card.ldf{border-color:rgba(220,31,46,.45);box-shadow:0 0 22px rgba(220,31,46,.22),inset 0 0 50px rgba(220,31,46,.04)}
 .lead-card.nda{border-color:rgba(255,122,31,.45);box-shadow:0 0 22px rgba(255,122,31,.22),inset 0 0 50px rgba(255,122,31,.04)}
-.lead-cons{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 10px;height:46px;flex-shrink:0;overflow:hidden;font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:13px;letter-spacing:.2px;color:#fff}
-.lead-cons-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-cons{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:0 10px;height:48px;flex-shrink:0;overflow:hidden;font-family:'Anek Malayalam',sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.1px;color:#fff}
+.lead-cons-name{flex:1;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden;text-overflow:clip;line-height:1.08;overflow-wrap:anywhere;word-break:normal}
 .lead-cons.udf{background:linear-gradient(90deg,#1845cc,#3b82f6)}
 .lead-cons.ldf{background:linear-gradient(90deg,#a81020,#ef4444)}
 .lead-cons.nda{background:linear-gradient(90deg,#cc5500,#fb923c)}
@@ -4654,46 +4654,79 @@ function App() {
       return next || [];
     });
   };
+  const applyDbSnapshot = useCallback(async (db, cancelledRef={ current:false }) => {
+    if (!db || cancelledRef.current) return;
+    setConstituencies(db.constituencies || []);
+    setCandidates(db.candidates || []);
+    setTicker(db.ticker || []);
+    setAnnouncements(db.announcements || []);
+    if (db.rawRoundRows) updateRawRoundRows(db.rawRoundRows);
+    if (db.settings) setSettings(db.settings);
+
+    if (db._phase2) {
+      const [segRows, userRows, imageRows] = await db._phase2;
+      if (cancelledRef.current) return;
+      const nextSegments = (segRows || []).map(dbToSegment);
+      const nextUsers = (userRows || []).map(dbToUser);
+      const imageCandidates = hydrateCandidateImages(db.candidates, imageRows);
+      setSegments(nextSegments);
+      setUsers(nextUsers);
+      setCandidates(imageCandidates);
+      saveDbCache({
+        constituencies: db.constituencies,
+        candidates: imageCandidates,
+        segments: nextSegments,
+        ticker: db.ticker,
+        announcements: db.announcements,
+        users: nextUsers,
+        settings: db.settings,
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    const cancelledRef = { current:false };
     if (cachedDb) setDbLoading(false);
     loadAllFromDB().then(db => {
-      if (cancelled) return;
+      if (cancelledRef.current) return;
       if (db) {
-        setConstituencies(db.constituencies || []);
-        setCandidates(db.candidates || []);
-        setTicker(db.ticker || []);
-        setAnnouncements(db.announcements || []);
-        if (db.rawRoundRows) updateRawRoundRows(db.rawRoundRows);
-        if (db.settings) setSettings(db.settings);
-        else supaUpsert('app_settings', settingsToDb(DEFAULT_SETTINGS));
-        // Phase 2: load segments + users in background after UI is visible
-        if (db._phase2) {
-          db._phase2.then(([segRows, userRows, imageRows]) => {
-            if (cancelled) return;
-            if (segRows) setSegments(segRows.map(dbToSegment));
-            if (userRows) setUsers(userRows.map(dbToUser));
-            const imageCandidates = hydrateCandidateImages(db.candidates, imageRows);
-            setCandidates(imageCandidates);
-            // Save full cache only after phase 2 completes
-            const fullDb = {
-              constituencies: db.constituencies,
-              candidates: imageCandidates,
-              segments: (segRows||[]).map(dbToSegment),
-              ticker: db.ticker,
-              announcements: db.announcements,
-              users: (userRows||[]).map(dbToUser),
-              settings: db.settings,
-            };
-            saveDbCache(fullDb);
-          });
-        }
+        applyDbSnapshot(db, cancelledRef);
+        if (!db.settings) supaUpsert('app_settings', settingsToDb(DEFAULT_SETTINGS));
       }
       setDbLoading(false);
     }).catch(() => setDbLoading(false));
-    return () => { cancelled = true; };
-  }, []);
+    return () => { cancelledRef.current = true; };
+  }, [applyDbSnapshot]);
+
+  // Poll every 30 seconds so other-device vote updates appear even when
+  // Supabase realtime is unavailable or not enabled on the current database.
+  useEffect(() => {
+    if (!supa) return;
+    const cancelledRef = { current:false };
+    let running = false;
+    const refreshFromDB = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const db = await loadAllFromDB();
+        if (db) await applyDbSnapshot(db, cancelledRef);
+      } catch (e) {
+        console.warn('30s DB poll failed', e);
+      } finally {
+        running = false;
+      }
+    };
+    const pollTimer = setInterval(refreshFromDB, 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshFromDB();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelledRef.current = true;
+      clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [applyDbSnapshot]);
 
   useEffect(() => {
     if (dbLoading || !user) return;
@@ -4774,16 +4807,28 @@ function App() {
       })
       // Candidates: patch individual candidate metadata
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, (payload) => {
-        debounce('candidates', async () => {
-          const [candRows, imageRows] = await Promise.all([
-            supaLoad('candidates'),
-            loadCandidateImagesFromDB(),
-          ]);
-          if (candRows) {
-            const rows = buildCandidatesFromRows(candRows, rawRoundRowsRef.current);
-            setCandidates(prev => hydrateCandidateImages(rows, imageRows.length ? imageRows : prev));
-          }
-        }, 400);
+        if (payload.eventType === 'DELETE') {
+          setCandidates(prev => prev.filter(c => c.id !== payload.old.id));
+        } else {
+          // UPDATE or INSERT
+          const updatedRow = payload.new;
+          setCandidates(prev => {
+            const next = [...prev];
+            const idx = next.findIndex(c => c.id === updatedRow.id);
+            // Get round rows specifically for this candidate to calculate totals
+            const myRows = rawRoundRowsRef.current.filter(r => r.candidate_id === updatedRow.id);
+            const updatedCand = dbToCandidate(updatedRow, myRows);
+            if (idx >= 0) {
+              // Preserve existing photoUrl/symbolUrl if not provided in payload
+              updatedCand.photoUrl = updatedRow.photo_url ? safeImageUrl(updatedRow.photo_url) : (prev[idx].photoUrl || updatedCand.photoUrl);
+              updatedCand.symbolUrl = updatedRow.symbol_url ? safeImageUrl(updatedRow.symbol_url) : (prev[idx].symbolUrl || updatedCand.symbolUrl);
+              next[idx] = updatedCand;
+            } else {
+              next.push(updatedCand);
+            }
+            return next;
+          });
+        }
       })
       // Round votes: patch in-memory — NO full re-fetch
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_round_votes' }, (payload) => {
@@ -4840,35 +4885,7 @@ function App() {
     };
   }, []);
 
-  // Viewer screens are often shown on LED walls. Keep them live even if
-  // Supabase realtime is delayed or not enabled for a table.
-  useEffect(() => {
-    if (!supa || user?.role !== 'viewer') return;
-    let cancelled = false;
-    const refreshViewer = async () => {
-      const [consRows, candRows, roundRows, tickerRows, announceRows, settingsRows] = await Promise.all([
-        supaLoad('constituencies'),
-        supaLoad('candidates'),
-        supaLoad('candidate_round_votes'),
-        supaLoadSorted('ticker_messages', 'sort_order', true),
-        supaLoadSorted('announcements', 'sort_order', true),
-        supaLoad('app_settings'),
-      ]);
-      if (cancelled) return;
-      if (consRows) setConstituencies(consRows.map(dbToConstituency));
-      if (candRows) setCandidates(prev => hydrateCandidateImages(buildCandidatesFromRows(candRows, roundRows || []), prev));
-      if (roundRows) updateRawRoundRows(roundRows);
-      if (tickerRows) setTicker(tickerRows.map(r => r.message));
-      if (announceRows) setAnnouncements(announceRows.map(r => ({ id: r.id, kind: r.kind || 1, msg: r.message, tag: r.tag || 'BREAKING' })));
-      if (settingsRows && settingsRows[0]) setSettings(dbToSettings(settingsRows[0]));
-    };
-    refreshViewer();
-    const timer = setInterval(refreshViewer, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [user?.role]);
+
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), cachedDb ? 700 : 1700);
